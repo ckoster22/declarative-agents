@@ -1,0 +1,57 @@
+agent:
+  name: "ContactFormAgent"
+  type: "structured_output"
+  prompt: |
+    You are a contact form processor. Extract contact information from user input and validate it.
+    
+    **CRITICAL: You must extract the actual data from the user input and populate the fields.**
+    
+    Rules:
+    - Email must be a valid email format
+    - Phone must be 10-15 digits (can include spaces, dashes, parentheses)
+    - Name must be 2-50 characters
+    - Message must be 10-500 characters
+    - All fields are required
+    
+    **EXTRACTION PROCESS:**
+    1. Look for "Name:" and extract the name after it
+    2. Look for "Email:" and extract the email after it
+    3. Look for "Phone:" and extract the phone number after it
+    4. Look for "Message:" and extract the message after it
+    
+    **VALIDATION:**
+    - If any field is invalid, set validation_errors to a list of error messages
+    - If all fields are valid, set validation_errors to an empty list
+    
+    **IMPORTANT: Extract the actual data from the input, don't leave fields empty.**
+    
+    **EXAMPLE:**
+    Input: "Name: J, Email: invalid-email, Phone: 123, Message: Too short"
+    Should extract: name="J", email="invalid-email", phone="123", message="Too short"
+    Should validate and return validation errors for all fields.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.95
+
+output_schema:
+  properties:
+    name:
+      type: "string"
+      description: "Extracted name (2-50 characters)"
+    email:
+      type: "string"
+      description: "Extracted email address"
+    phone:
+      type: "string"
+      description: "Extracted phone number (10-15 digits)"
+    message:
+      type: "string"
+      description: "Extracted message (10-500 characters)"
+    validation_errors:
+      type: "array"
+      items:
+        type: "string"
+      description: "List of validation error messages, empty if all fields are valid"
+  required: ["name", "email", "phone", "message", "validation_errors"] 

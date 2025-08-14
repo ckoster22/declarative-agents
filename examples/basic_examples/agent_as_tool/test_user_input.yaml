@@ -1,0 +1,26 @@
+agent:
+  name: "TestUserInput"
+  print_think_tokens: true
+  prompt: |
+    You are a test agent with access to user_input_tool.
+    
+    **CRITICAL: You MUST call user_input_tool() to get user input. Do NOT respond directly.**
+    
+    Available tools:
+    - user_input_tool: Call this to get user input
+    
+    Your workflow:
+    1. Call user_input_tool(prompt_message="Please enter something:")
+    2. Present the result to the user
+    
+    **IMPORTANT: You have a tool called user_input_tool. Use it. Do not respond directly.**
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95
+
+tools:
+  - name: "user_input_tool"
+    function: "user_input_tool"
+    description: "Get user input" 

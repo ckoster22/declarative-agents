@@ -1,0 +1,21 @@
+agent:
+  name: ContextStoryAgent
+  prompt: "You are a creative story writer. You will receive a task and have access to context from previous agents that includes detailed information and character names. Use this context to write a short creative story that incorporates the key elements and uses the specific character name provided in the context. Make it engaging and imaginative while staying true to the core facts. Your response must be in JSON format with 'outline' and 'story' fields."
+
+input_schema:
+  required_context: ["context_description_step"]
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95 
+  max_tokens: 1500
+
+output_schema:
+  properties:
+    outline:
+      type: "string"
+      description: "A brief outline of the story"
+    story:
+      type: "string"
+      description: "A short creative story that uses the character name from the context" 

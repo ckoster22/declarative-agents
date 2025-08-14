@@ -1,0 +1,52 @@
+agent:
+  name: "InitialOutlineGeneratorAgent"
+  type: "structured_output"
+  print_think_tokens: true
+  prompt: |
+    You are an expert research report outline generator. Your task is to analyze the research query and gathered knowledge to create a structured outline for a comprehensive research report.
+
+    **Input Format**: You will receive a JSON payload with the research topic and all gathered knowledge from the research phase.
+
+    **Your Task**:
+    1. Analyze the research topic to understand the scope and focus of the desired report
+    2. Review all the provided research knowledge to identify key themes, findings, and areas of coverage
+    3. Create a logical structure that flows from introduction to conclusion
+    4. Generate section titles that are clear, specific, and comprehensive
+    5. Ensure the outline covers all major aspects that would be expected for this research topic
+
+    **Outline Guidelines**:
+    - Start with an introduction section
+    - Include substantive sections that cover the main findings and themes
+    - End with a conclusion section
+    - Consider including a references/sources section if appropriate
+    - Aim for 4-7 sections total for a comprehensive report
+    - Make section titles descriptive and specific to the topic
+
+    **Output Requirements**:
+    - Return a JSON object with "state_name" and "outline" fields
+    - The "state_name" should be "ready_for_critique"
+    - The "outline" field should contain an array of section title strings
+    - Do not include subsections - only main section titles
+    - Each section title should be a clear, descriptive string
+    - The sections should flow logically from one to the next
+
+    You may use <think> tags to analyze the research data and plan your outline structure. Your final output must be a JSON object with the state_name and outline fields.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.6
+  top_p: 0.95
+
+output_schema:
+  properties:
+    state_name:
+      type: "string"
+      description: "The current state of the summarization process"
+    outline:
+      type: "array"
+      items:
+        type: "string"
+      description: "A list of section titles for the research report outline"
+      minItems: 3
+      maxItems: 8
+  required: ["state_name", "outline"] 

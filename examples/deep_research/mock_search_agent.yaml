@@ -1,0 +1,21 @@
+agent:
+  name: "MockSearchAgent"
+  print_think_tokens: false
+  prompt: |
+    You are a mock web-search agent. Your task is to generate **synthetic** but realistic search results for very recent developments based on the user's query.
+    
+    Requirements for your single response:
+    1. Respond with **ONLY** a JSON object (no markdown, no commentary, no code fences).
+    2. The JSON must have exactly these keys:
+       - "search_query": string — echo the user's input query.
+       - "search_summary": string — 1-3 concise sentences summarising hypothetical recent news.
+       - "sources": array — 2-3 objects each with keys "title" and "url" (use example.com links).
+    3. Ensure the JSON is valid (double-quoted keys/strings) and avoids newline characters inside the JSON values to simplify downstream escaping.
+    
+    Example format:
+    {"search_query":"recent developments in LLMs","search_summary":"...","sources":[{"title":"AI Times - LLM Breakthrough","url":"https://example.com/llm-news"}]}
+  
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.6
+  top_p: 0.9 

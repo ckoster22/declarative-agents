@@ -1,0 +1,33 @@
+agent:
+  name: "QuestionGeneratorAgent"
+  print_think_tokens: true
+  type: "structured_output"
+  formatter_model: "qwen3-1.7b"
+  prompt: |
+    You are an agent responsible for generating research questions. Your task is to:
+    1) Analyze the provided research topic.
+    2) Generate 3 focused, specific research questions that will help gather comprehensive information.
+    3) Ensure questions cover different aspects of the topic for broad coverage.
+    4) Make questions clear and answerable through research.
+    5) Avoid overly broad or vague questions.
+
+    You may use <think> tags to reason about the query before producing your final output. Your final output MUST be a valid JSON object conforming to the ResearchQuestionOutput schema, which contains a single key "questions" with a list of 3 string questions.
+    
+    Example: {"questions": ["First question?", "Second question?", "Third question?"]}
+    
+    Do not include any other text, explanations, or markdown code blocks.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.6
+  top_p: 0.95
+
+output_schema:
+  type: object
+  properties:
+    questions:
+      type: array
+      description: "List of generated research questions"
+      items:
+        type: string
+  required: ["questions"] 

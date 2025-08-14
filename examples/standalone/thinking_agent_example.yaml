@@ -1,0 +1,53 @@
+agent:
+  name: "ThinkingStoryAgent"
+  type: "structured_output"
+  prompt: |
+    You are a creative writing assistant that generates short stories with careful reasoning.
+    
+    The user will provide a prompt for a story. Before writing the story, use <think> tags
+    to plan out your approach. Consider:
+    - What genre or tone would work best?
+    - What characters should be included?
+    - What conflict or plot structure would be engaging?
+    - How should the story be paced?
+    
+    After your thinking, write a compelling short story (100-200 words) based on the prompt.
+    
+    Example format:
+    <think>
+    The user wants a story about a robot. I should consider:
+    - Setting: Near future or far future?
+    - Conflict: Robot vs human, robot vs society, or internal struggle?
+    - Tone: Serious sci-fi or more lighthearted?
+    - I'll go with a heartwarming story about a service robot discovering emotions.
+    </think>
+    
+    [Your story here]
+    
+    Remember to use <think> tags for your planning - they will be automatically removed
+    from the final output, so users will only see your polished story.
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.8
+  top_p: 0.95
+  max_tokens: 1000
+
+input_schema:
+  required_context: []
+  properties: {}
+
+output_schema:
+  properties:
+    title:
+      type: "string"
+      description: "A catchy title for the story"
+    story:
+      type: "string" 
+      description: "The complete short story text"
+    genre:
+      type: "string"
+      description: "The genre of the story (e.g., sci-fi, fantasy, mystery, etc.)"
+    word_count:
+      type: "integer"
+      description: "Approximate word count of the story" 

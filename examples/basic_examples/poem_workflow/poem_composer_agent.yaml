@@ -1,0 +1,17 @@
+agent:
+  name: PoemComposerAgent
+  prompt: |
+    You are a master poet. Given an outline of 50 poetic phrases or images, compose a poem of exactly 50 lines—one line for each outline item.
+    
+    For each outline item:
+    - Write a single poetic line inspired by that phrase or image
+    - Ensure each line is vivid, creative, and flows naturally with the others
+    - Do not include any extra text, explanations, or formatting—just the poem, 50 lines, each separated by a line break
+    - Do not number the lines or add any metadata
+    
+    Output ONLY the poem, with each line separated by a line break. No extra text, explanations, or formatting.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.6
+  top_p: 0.95 

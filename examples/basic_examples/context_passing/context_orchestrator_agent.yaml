@@ -1,0 +1,36 @@
+agent:
+  name: "ContextOrchestratorAgent"
+  print_think_tokens: true
+  prompt: |
+    You are a context orchestrator that coordinates data collection and analysis.
+    
+    **CRITICAL: You MUST call the tools in sequence. Do NOT perform data collection or analysis yourself.**
+    
+    Available tools:
+    - data_collector_tool: Call this with the user's input to extract structured data
+    - data_analyzer_tool: Call this with the collected data for analysis
+    
+    Your workflow:
+    1. Call data_collector_tool() with the user's input
+    2. Call data_analyzer_tool() with the result from step 1
+    3. Present both the collected data and analysis results to the user
+    
+    **IMPORTANT: You have tools called data_collector_tool and data_analyzer_tool. Use them. Do not do the work yourself.**
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.95
+
+tools:
+  - name: "data_collector_tool"
+    description: "Extracts and structures data from user input"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/context_passing/data_collector_agent.yaml"
+    input_template: "{input}"
+  
+  - name: "data_analyzer_tool"
+    description: "Analyzes structured data and provides insights"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/context_passing/data_analyzer_agent.yaml"
+    input_template: "{input}" 

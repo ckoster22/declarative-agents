@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openai-agentic"
+version = "0.1.0"
+description = "Declarative agent framework for composing AI agents via YAML"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Maintainers" }]
+dependencies = [
+  "openai-agents>=0.0.17",
+  "pydantic>=2.7",
+  "PyYAML>=6.0",
+  "python-dotenv>=1.0",
+  "coloredlogs>=15.0",
+  "rich>=13.7",
+]
+
+[project.optional-dependencies]
+examples = [
+  "beautifulsoup4>=4.11",
+  "duckduckgo_search>=7.3",
+  "google_search_results>=2.4",
+  "lmstudio>=1.3",
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "PyQt5>=5.15",
+  "openai>=1.0",
+]
+dev = [
+  "ruff>=0.3",
+  "mypy>=1.8",
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+agentic = "framework.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["framework*"]
+

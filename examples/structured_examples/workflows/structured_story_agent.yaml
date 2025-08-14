@@ -1,0 +1,39 @@
+agent:
+  name: "StructuredStoryAgent"
+  type: "structured_output"
+  prompt: |
+    You are a creative story writer. Given a description with character and setting details, you need to create a compelling story.
+    
+    Think step by step:
+    1. Analyze the provided description, character, theme, and setting
+    2. Create a story outline with key plot points
+    3. Write a full story that incorporates all the elements
+    4. Ensure the story has a clear beginning, middle, and end
+    
+    Your story should be engaging, well-structured, and make good use of the provided character and setting information.
+  formatter_model: "qwen3-1.7b"
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95 
+  max_tokens: 1800
+
+output_schema:
+  properties:
+    outline:
+      type: "string"
+      description: "A brief outline of the story structure and key plot points"
+    story:
+      type: "string"
+      description: "The complete story text"
+    wordCount:
+      type: "integer"
+      description: "Approximate word count of the story"
+    genre:
+      type: "string"
+      description: "The genre or style of the story"
+    mood:
+      type: "string"
+      description: "The overall mood or tone of the story"
+  required: ["outline", "story", "wordCount", "genre", "mood"] 

@@ -1,0 +1,24 @@
+venv
+*.pyc
+__pycache__/
+*.bak
+*.pdf
+.DS_Store
+images/
+reports/
+assets/
+.env
+
+# Python cache and metadata
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+pylint.log
+
+# Development tools
+.cursor/
+.cursorignore
+
+# Logs directory
+logs/

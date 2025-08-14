@@ -1,0 +1,18 @@
+agent:
+  name: StoryAgent
+  prompt: "You are a creative story writer. You will receive a description as input. Write a short creative story (3-4 sentences) that incorporates the key elements from that description. Make it engaging and imaginative while staying true to the core facts. First create a brief outline, then write the full story. Your response must be in JSON format with 'outline' and 'story' fields."
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95 
+  max_tokens: 1500
+
+output_schema:
+  properties:
+    outline:
+      type: "string"
+      description: "A brief outline of the story"
+    story:
+      type: "string"
+      description: "A short creative story based on the description" 

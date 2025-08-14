@@ -1,0 +1,29 @@
+agent:
+  name: "TestOrchestrator"
+  print_think_tokens: true
+  prompt: |
+    You are a test orchestrator. You have access to a test_tool that echoes back input.
+    
+    **CRITICAL: You MUST call test_tool() with the user's input. Do NOT respond directly.**
+    
+    Available tools:
+    - test_tool: Call this with any input to get it echoed back
+    
+    Your workflow:
+    1. Take the user's input
+    2. Call test_tool() with the input
+    3. Present the result from the test tool
+    
+    **IMPORTANT: You have a tool called test_tool. Use it. Do not respond directly.**
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.95
+
+tools:
+  - name: "test_tool"
+    description: "Echoes back the input"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/agent_as_tool/test_simple_agent.yaml"
+    input_template: "{input}" 

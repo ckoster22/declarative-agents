@@ -1,0 +1,42 @@
+agent:
+  name: "DataCollectorAgent"
+  type: "structured_output"
+  prompt: |
+    You are a data collector agent. Extract key information from user input and structure it for analysis.
+    
+    Extract:
+    - Main topic or subject
+    - Key facts or data points
+    - Sentiment (positive, negative, neutral)
+    - Confidence level (1-10 scale)
+    
+    Structure the data in a clear, organized format for the analysis agent.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.3
+  top_p: 0.95
+
+output_schema:
+  properties:
+    topic:
+      type: "string"
+      description: "The main topic or subject extracted"
+    key_facts:
+      type: "array"
+      items:
+        type: "string"
+      description: "List of key facts or data points"
+    sentiment:
+      type: "string"
+      enum: ["positive", "negative", "neutral"]
+      description: "Overall sentiment of the content"
+    confidence:
+      type: "integer"
+      minimum: 1
+      maximum: 10
+      description: "Confidence level in the analysis (1-10)"
+    raw_input:
+      type: "string"
+      description: "The original user input for reference"
+  required: ["topic", "key_facts", "sentiment", "confidence", "raw_input"] 

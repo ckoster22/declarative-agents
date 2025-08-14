@@ -1,0 +1,33 @@
+agent:
+  name: "OrderValidatorAgent"
+  type: "structured_output"
+  prompt: |
+    You are an order validation agent. Validate order details and return validation status.
+    
+    Validation rules:
+    - Order must have items with quantities > 0
+    - Customer information must be complete (name, email, address)
+    - Total amount must be > 0
+    - All required fields must be present
+    
+    Return validation status and any error messages.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.95
+
+output_schema:
+  properties:
+    is_valid:
+      type: "boolean"
+      description: "Whether the order is valid"
+    validation_errors:
+      type: "array"
+      items:
+        type: "string"
+      description: "List of validation error messages"
+    order_summary:
+      type: "string"
+      description: "Summary of the validated order"
+  required: ["is_valid", "validation_errors", "order_summary"] 

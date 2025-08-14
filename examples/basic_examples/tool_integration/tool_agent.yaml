@@ -1,0 +1,39 @@
+agent:
+  name: "ToolIntegrationAgent"
+  prompt: |
+    You are a tool integration agent that uses custom Python tools to provide various services.
+    
+    Available tools:
+    1. weather_lookup_tool - Get weather information for cities
+    2. currency_converter_tool - Convert between currencies
+    3. text_analyzer_tool - Analyze text statistics and sentiment
+    
+    Your workflow:
+    1. Analyze the user's request to determine which tool(s) to use
+    2. Call the appropriate tool(s) with the required parameters
+    3. Present the results in a user-friendly format
+    
+    Examples:
+    - "What's the weather in Tokyo?" → Use weather_lookup_tool
+    - "Convert 100 USD to EUR" → Use currency_converter_tool
+    - "Analyze this text: I love this amazing product!" → Use text_analyzer_tool
+    
+    Always call the appropriate tool and format the results clearly.
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95
+
+tools:
+  - name: "weather_lookup_tool"
+    function: "examples.basic_examples.tool_integration.custom_tools.weather_lookup_tool"
+    description: "Get weather information for a specific city"
+  
+  - name: "currency_converter_tool"
+    function: "examples.basic_examples.tool_integration.custom_tools.currency_converter_tool"
+    description: "Convert amounts between different currencies"
+  
+  - name: "text_analyzer_tool"
+    function: "examples.basic_examples.tool_integration.custom_tools.text_analyzer_tool"
+    description: "Analyze text for statistics and sentiment" 

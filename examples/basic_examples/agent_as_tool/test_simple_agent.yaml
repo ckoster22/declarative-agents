@@ -1,0 +1,19 @@
+agent:
+  name: "TestSimpleAgent"
+  type: "structured_output"
+  prompt: |
+    You are a simple test agent. When given any input, return it in a structured format.
+    
+    Just return the input as a JSON object with a "message" field.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.95
+
+output_schema:
+  properties:
+    message:
+      type: "string"
+      description: "The input message"
+  required: ["message"] 

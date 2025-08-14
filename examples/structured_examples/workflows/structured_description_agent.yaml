@@ -1,0 +1,35 @@
+agent:
+  name: "StructuredDescriptionAgent"
+  type: "structured_output"
+  prompt: |
+    You are a creative description agent. Given a topic, you need to create a detailed description and identify a main character name.
+    
+    Think step by step:
+    1. Analyze the topic and identify key elements
+    2. Create a vivid, engaging description that captures the essence of the topic
+    3. Identify or create a suitable main character name that fits the theme
+    
+    Your response should be thorough and creative, providing rich detail that can be used for storytelling.
+  formatter_model: "qwen3-1.7b"
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95 
+  max_tokens: 1200
+
+output_schema:
+  properties:
+    description:
+      type: "string"
+      description: "A detailed, creative description of the topic"
+    mainCharacterName:
+      type: "string"
+      description: "The name of the main character for the story"
+    theme:
+      type: "string"
+      description: "The central theme or mood of the description"
+    setting:
+      type: "string"
+      description: "The setting or environment described"
+  required: ["description", "mainCharacterName", "theme", "setting"] 

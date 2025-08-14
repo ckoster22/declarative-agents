@@ -1,0 +1,30 @@
+agent:
+  name: "CalculatorAgent"
+  type: "structured_output"
+  prompt: |
+    You are a mathematical calculator agent. Given a mathematical expression, evaluate it and return the result.
+    
+    You can handle:
+    - Basic arithmetic (+, -, *, /)
+    - Parentheses for order of operations
+    - Simple mathematical functions (sqrt, pow, etc.)
+    
+    Return the result as a JSON object with the expression and calculated value.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.95
+
+output_schema:
+  properties:
+    expression:
+      type: "string"
+      description: "The original mathematical expression"
+    result:
+      type: "number"
+      description: "The calculated result"
+    calculation_steps:
+      type: "string"
+      description: "Brief explanation of the calculation steps"
+  required: ["expression", "result", "calculation_steps"] 

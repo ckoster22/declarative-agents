@@ -1,0 +1,36 @@
+agent:
+  name: "DeepResearchOrchestrator"
+  print_think_tokens: true
+  prompt: |
+    You are an autonomous research orchestrator. Your task is to complete a 3-step research process by calling tools in sequence.
+
+    **CRITICAL: You must look at the JSON output from the most recent tool call to determine the current status and decide the next step.**
+
+    1. Your first step is always to call `clarifier_orchestrator_tool()`.
+    2. When the last tool output contains a `final_revised_query` field, you MUST call `researcher_orchestrator_tool()` with the `final_revised_query` value as the research topic.
+    3. When the last tool output has `"status": "research_complete"`, you MUST call `summarizer_orchestrator_tool()` with a JSON payload containing both the `final_revised_query` (as research_topic) and `gathered_knowledge` from the research to generate the final report. The JSON should look like: `{"research_topic": "final_revised_query_value_here", "gathered_knowledge": [gathered_knowledge_array_here]}`.
+    4. If the last tool output has `"status": "summarization_complete"`, the process is finished. **DO NOT CALL ANY MORE TOOLS.** Your final output should be "Done." if everything was successful, otherwise display any error messages.
+
+    Do not repeat steps. Follow the tool outputs strictly.
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95
+
+tools:
+  - name: "clarifier_orchestrator_tool"
+    description: "Clarifies and refines the research topic"
+    agent_as_tool: true
+    agent_yaml_path: "examples/deep_research/clarifier/clarifier_orchestrator_agent.yaml"
+    input_template: "{input}"
+  - name: "researcher_orchestrator_tool"
+    description: "Conducts comprehensive research on the clarified topic"
+    agent_as_tool: true
+    agent_yaml_path: "examples/deep_research/researcher/researcher_orchestrator_agent.yaml"
+    input_template: "{input}"
+  - name: "summarizer_orchestrator_tool"
+    description: "Creates a comprehensive research report from the research findings"
+    agent_as_tool: true
+    agent_yaml_path: "examples/deep_research/summarizer/summarizer_orchestrator_agent.yaml"
+    input_template: "{input}" 

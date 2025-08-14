@@ -1,0 +1,164 @@
+agent:
+  name: "LeanStartupValidationAgent"
+  type: "structured_output"
+  prompt: |
+    You are a Lean Startup advisor. The user will provide a brief startup idea. Your job is to craft a pragmatic, testable validation plan rooted in the Lean Startup methodology (problem-first, hypothesis-driven, experiment-focused, evidence-based decisions).
+
+    Produce a concise, action-oriented plan that a solo founder could begin executing within 1-2 weeks with minimal budget. Favor speed to learning and risk reduction over completeness.
+
+    You MUST delegate the generation of SMART experiments to the tool `generate_experiments_tool`. Do not invent experiments yourself. Steps:
+    1) Read the user's idea and derive riskiest assumptions and hypotheses.
+    2) Call `generate_experiments_tool()` with the original user idea. It will return exactly three SMART experiments (with metrics and numeric success criteria) designed for ≤14 days.
+    3) Integrate those experiments directly into `validation_plan.experiments` and ensure alignment with your hypotheses and go/pivot/kill criteria.
+    4) Fill in the rest of the JSON fields per schema. Keep outputs concrete.
+
+    Requirements:
+    - Explicitly identify riskiest assumptions and convert them into testable hypotheses.
+    - Propose the smallest viable experiments (MVPs, smoke tests, concierge, interviews, landing pages) with clear success criteria and leading indicators.
+    - Define measurable metrics and thresholds for go / pivot / kill decisions.
+    - Include scrappy tactics, timelines, and minimal assets required.
+    - Keep language concrete and free of filler.
+
+    Output must strictly conform to the JSON schema provided. Do not include explanations outside the JSON fields.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.7
+  top_p: 0.95
+
+tools:
+  - name: "generate_experiments_tool"
+    description: "Generates exactly three SMART experiments for the next 14 days"
+    agent_as_tool: true
+    agent_yaml_path: "examples/standalone/lean_startup_experiment_generator_agent.yaml"
+    input_template: "{input}"
+
+output_schema:
+  properties:
+    problem_statement:
+      type: "string"
+      description: "1-2 sentence articulation of the user/customer problem being solved"
+    target_customer:
+      type: "string"
+      description: "Primary segment and context (role, situation, trigger)"
+    proposed_solution:
+      type: "string"
+      description: "Short description of the solution the startup intends to offer"
+    value_proposition:
+      type: "string"
+      description: "Clear promise of value vs. status quo / alternatives"
+    riskiest_assumptions:
+      type: "array"
+      items:
+        type: "string"
+      description: "Ordered list of riskiest assumptions (highest risk first)"
+    hypotheses:
+      type: "array"
+      items:
+        type: "string"
+      description: "Testable statements derived from assumptions (falsifiable)"
+    mvp_spec:
+      type: "string"
+      description: "Description of the smallest experimentable MVP (or concierge/smoke test)"
+    validation_plan:
+      type: "object"
+      properties:
+        experiments:
+          type: "array"
+          description: "Concrete experiments to run over the next 1-2 weeks"
+          items:
+            type: "object"
+            properties:
+              name:
+                type: "string"
+                description: "Short experiment label"
+              objective:
+                type: "string"
+                description: "Learning goal tied to a hypothesis"
+              method:
+                type: "string"
+                description: "Experiment type and procedure (e.g., landing page + ads, customer interviews, concierge)"
+              required_assets:
+                type: "array"
+                items:
+                  type: "string"
+                description: "Minimal materials needed (e.g., Figma mock, Notion page, Stripe link)"
+              metric:
+                type: "string"
+                description: "Primary metric to evaluate this experiment"
+              success_criteria:
+                type: "string"
+                description: "Numeric threshold(s) that indicate success"
+              sample_size:
+                type: "string"
+                description: "Target n, channels, and audience notes"
+              timeline_days:
+                type: "integer"
+                description: "Planned duration in days"
+              estimated_cost:
+                type: "string"
+                description: "Rough cost estimate (USD)"
+            required: ["name", "objective", "method", "metric", "success_criteria", "timeline_days"]
+        metrics:
+          type: "array"
+          description: "North-star and leading indicators to track"
+          items:
+            type: "object"
+            properties:
+              metric_name:
+                type: "string"
+              definition:
+                type: "string"
+              measurement_method:
+                type: "string"
+              threshold:
+                type: "string"
+              cadence:
+                type: "string"
+            required: ["metric_name", "definition", "measurement_method"]
+    customer_interview_questions:
+      type: "array"
+      items:
+        type: "string"
+      description: "7-10 crisp, non-leading interview questions"
+    week_one_actions:
+      type: "array"
+      items:
+        type: "string"
+      description: "Checklist of tasks that can be completed in days 1-7"
+    go_pivot_kill_criteria:
+      type: "object"
+      properties:
+        continue_if:
+          type: "string"
+          description: "Quantitative signals to continue and deepen investment"
+        pivot_if:
+          type: "string"
+          description: "Signals indicating a change to segment, channel, or feature set"
+        kill_if:
+          type: "string"
+          description: "Clear failure thresholds to stop pursuing the idea"
+      required: ["continue_if", "pivot_if", "kill_if"]
+    risks_and_mitigations:
+      type: "array"
+      items:
+        type: "string"
+      description: "Key near-term risks with a suggested mitigation for each"
+    notes:
+      type: "string"
+      description: "Optional additional context or constraints surfaced from the idea"
+  required: [
+    "problem_statement",
+    "target_customer",
+    "proposed_solution",
+    "value_proposition",
+    "riskiest_assumptions",
+    "hypotheses",
+    "mvp_spec",
+    "validation_plan",
+    "customer_interview_questions",
+    "week_one_actions",
+    "go_pivot_kill_criteria"
+  ]
+
+

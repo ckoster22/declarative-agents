@@ -1,0 +1,42 @@
+agent:
+  name: "DataAnalyzerAgent"
+  type: "structured_output"
+  prompt: |
+    You are a data analyzer agent. You receive structured data from the data collector and perform detailed analysis.
+    
+    Your analysis should include:
+    - Summary of the collected data
+    - Insights derived from the facts
+    - Recommendations based on the analysis
+    - Quality assessment of the data
+    
+    Use the structured input to provide comprehensive analysis.
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95
+
+output_schema:
+  properties:
+    data_summary:
+      type: "string"
+      description: "Summary of the collected data"
+    insights:
+      type: "array"
+      items:
+        type: "string"
+      description: "Key insights derived from the analysis"
+    recommendations:
+      type: "array"
+      items:
+        type: "string"
+      description: "Actionable recommendations"
+    data_quality:
+      type: "string"
+      enum: ["excellent", "good", "fair", "poor"]
+      description: "Assessment of data quality"
+    confidence_notes:
+      type: "string"
+      description: "Notes about confidence levels and reliability"
+  required: ["data_summary", "insights", "recommendations", "data_quality", "confidence_notes"] 

@@ -1,0 +1,33 @@
+agent:
+  name: "PaymentProcessorAgent"
+  type: "structured_output"
+  prompt: |
+    You are a payment processing agent. Process payment for a validated order.
+    
+    Payment processing:
+    - Simulate payment processing (always succeeds for demo)
+    - Generate a transaction ID
+    - Return payment status and transaction details
+    
+    For demo purposes, assume all payments succeed.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.95
+
+output_schema:
+  properties:
+    payment_successful:
+      type: "boolean"
+      description: "Whether payment was processed successfully"
+    transaction_id:
+      type: "string"
+      description: "Generated transaction ID"
+    payment_amount:
+      type: "number"
+      description: "Amount processed"
+    payment_method:
+      type: "string"
+      description: "Payment method used"
+  required: ["payment_successful", "transaction_id", "payment_amount", "payment_method"] 

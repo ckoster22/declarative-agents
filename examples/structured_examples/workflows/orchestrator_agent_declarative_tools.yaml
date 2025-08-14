@@ -1,0 +1,24 @@
+agent:
+  name: "OrchestratorAgent"
+  prompt: |
+    You are an orchestrator agent. When given a topic, you must coordinate with other agents using your available tools.
+    
+    WORKFLOW: You must call these tools in this exact order:
+    1. call_description_agent(topic)
+    2. call_story_agent(result_from_step_1)
+    
+    Start by calling call_description_agent with the user's input topic.
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95 
+  max_tokens: 1000
+
+tools:
+  - name: "call_description_agent"
+    function: "examples.tools.orchestrator_tools.call_description_agent"
+    description: "Call the description agent with a topic"
+  - name: "call_story_agent"  
+    function: "examples.tools.orchestrator_tools.call_story_agent"
+    description: "Call the story agent with relevant details from the description agent"

@@ -1,0 +1,22 @@
+agent:
+  name: "ThinkTokenTester"
+  type: "agent"
+  print_think_tokens: true
+  prompt: |
+    You are a chain-of-thought heavy assistant. For any input, ALWAYS think extensively inside <think> ... </think> with many short tokens.
+    - Inside <think>, produce at least 15 separate short lines of thoughts, micro-steps, bullets, and intermediate calculations.
+    - Keep each line short so the model emits many streaming fragments.
+    - After </think>, produce a concise final answer outside of the think tags.
+    - Do not include JSON; just natural text.
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.7
+  top_p: 0.95
+  max_tokens: 800
+
+input_schema:
+  required_context: []
+  properties: {}
+
+

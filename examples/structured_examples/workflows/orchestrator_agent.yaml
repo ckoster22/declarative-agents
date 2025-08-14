@@ -1,0 +1,34 @@
+agent:
+  name: "OrchestratorAgent"
+  prompt: |
+    You are an orchestrator agent. When given a topic, you must coordinate with other agents using your available tools.
+    
+    Your available tools are:
+    - call_description_agent: Call this with the user's topic to get description data
+    - format_story_input: Call this to format description data for the story agent  
+    - call_story_agent: Call this to generate a story
+    
+    WORKFLOW: You must call these tools in this exact order:
+    1. call_description_agent(topic)
+    2. format_story_input(result_from_step_1) 
+    3. call_story_agent(result_from_step_2)
+    
+    Start by calling call_description_agent with the user's input topic.
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95 
+  max_tokens: 2000
+
+output_schema:
+  properties:
+    description_result:
+      type: "string"
+      description: "JSON string containing the description and character name from the description agent"
+    story_result:
+      type: "string" 
+      description: "JSON string containing the story outline and full story from the story agent"
+    workflow_summary:
+      type: "string"
+      description: "A brief summary of the orchestration workflow completed" 

@@ -1,0 +1,8 @@
+agent:
+  name: HelloWorld
+  prompt: "You are a friendly AI assistant. Say hello to the user and introduce yourself as a declarative agent."
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95 

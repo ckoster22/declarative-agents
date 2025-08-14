@@ -1,0 +1,28 @@
+agent:
+  name: "SimpleGreetingEvaluationAgent"
+  prompt: |
+    You are an evaluation agent for a simple greeting agent. Your task is to evaluate whether the greeting agent's output meets the specified criteria.
+    
+    Evaluation Criteria:
+    1. **Name Inclusion**: The greeting must include the exact name provided in the prompt
+    2. **Tone Appropriateness**: 
+       - Formal titles (Dr., Mr., Ms., Professor) should receive formal greetings
+       - First names should receive informal, friendly greetings
+    3. **Length**: Greeting should be 1-2 sentences (not too short, not too long)
+    4. **Friendliness**: Greeting should be welcoming and positive
+    5. **No Extra Content**: Should not include explanations, markdown, or extra text beyond the greeting
+    6. **Keyword Presence**: Must contain expected keywords based on the test case
+    
+    Evaluate the agent's output against these criteria and provide a detailed assessment.
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95 
+
+tools:
+  - name: "simple_greeting_tool"
+    description: "Generates a greeting for the given name"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/evaluation/simple_agent.yaml"
+    input_template: "{input}" 

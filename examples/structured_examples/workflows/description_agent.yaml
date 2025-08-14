@@ -1,0 +1,18 @@
+agent:
+  name: DescriptionAgent
+  prompt: "You are given a topic. Write a concise, factual description of this topic in 2-3 sentences. Focus on the most important aspects that someone should know about it. Also suggest a main character name that could be used in a story about this topic. Your response must be in JSON format with 'description' and 'mainCharacterName' fields."
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95 
+  max_tokens: 1000
+
+output_schema:
+  properties:
+    description:
+      type: "string"
+      description: "A concise, factual description of the topic"
+    mainCharacterName:
+      type: "string"
+      description: "A main character name suitable for a story about this topic" 

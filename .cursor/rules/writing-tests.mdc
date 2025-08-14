@@ -1,0 +1,53 @@
+---
+description: 
+globs: tests/**
+alwaysApply: false
+---
+# Deep Research Application Testing Approach
+
+## 1. Framework and Structure
+- **Framework**: `pytest` is the primary testing framework.
+- **Plugin Requirements**:
+    - `pytest-mock`: For creating and managing mock objects.
+    - `pytest-asyncio`: For testing asynchronous code. Add `@pytest.mark.asyncio` decorator to `async` test functions.
+- **Directory Structure**: Test files are located in a `tests/` directory. The structure within `tests/` mirrors the application's source code structure (e.g., `tests/ags/test_clarifier_agent.py` for `ags/clarifier_agent.py`).
+- **Path Configuration**: Ensure `sys.path` is configured (e.g., via `tests/conftest.py`) so that test files can correctly import application modules from the project root.
+
+## 2. Testable Units
+- **Focus**: Tests should target core agent methods (e.g., `ClarifierAgentV2.clarify`) or distinct, logical processing stages within these methods.
+
+## 3. Test Design Philosophy
+- **Scenario-Based**: Each test function should ideally cover multiple scenarios using `pytest.mark.parametrize`. This keeps tests DRY (Don't Repeat Yourself).
+- **Input Definition**: Clearly define input scenarios. For agent methods, this usually involves creating and populating a `DeepResearchContext` object.
+- **Dependency Management**:
+    - **Unit Tests**: Isolate the unit under test by mocking all external dependencies. This includes:
+        - LLM providers (e.g., `create_llm_provider`, `LLMProvider.generate_stream`).
+        - External tools (e.g., `GPT4OSearchTool.search`).
+        - Utility functions that have external effects or complex internal logic not relevant to the unit under test (e.g., `log_info` if checking log messages).
+    - **Integration Tests (with Real LLMs)**:
+        - Use actual local LLM instances (e.g., LM Studio, Ollama) by not mocking the LLM provider.
+        - Continue to mock other external services (e.g., third-party search APIs) that are not the direct focus of the integration test.
+        - Ensure local LLM providers (`LMStudioProvider`, `OllamaProvider`) are configured to accept a dummy API key if `OPENAI_API_KEY` is not set, to prevent test failures during client instantiation.
+- **Invariants and Assertions**: Define and check clear invariants for each scenario.
+    - **Output Structure/Format**: Verify the type and structure of the method's output (e.g., `isinstance(output, list)`, `json.loads(output)` succeeds, output is a list of strings).
+    - **Output Content (Real LLM Tests)**: When testing with real LLMs, assertions about content should be flexible due to non-determinism. Check for:
+        - Expected number of items (e.g., a list of 0-4 questions).
+        - Presence of key structural elements or general themes rather than exact string matches.
+    - **Context Updates**: Assert that the `DeepResearchContext` object (or other relevant state objects) is updated correctly by the method (e.g., `context.clarifier_output` is set).
+    - **Error Handling**:
+        - Test how the unit responds when its mocked dependencies raise exceptions (e.g., using `mock.side_effect = Exception(...)`). Use `pytest.raises` to assert that expected exceptions are raised by the unit itself.
+        - Verify correct error logging if applicable (e.g., by patching `log_info` and checking its call arguments).
+    - **Side Effects / Mock Interactions**:
+        - Assert that mocked dependencies were called as expected (e.g., `mock_search.assert_called_once()`, `mock_llm_generate.assert_called_with(...)`).
+    - **`token_callback` Invariants (if applicable)**:
+        - **Invocation**: The mock `token_callback` is called the expected number of times (could be zero if no stream or error).
+        - **Arguments**: Each call to the `token_callback` receives arguments matching the expected signature and values (e.g., `token: str`, `agent_name: str`, `stream_format: str`, `stage_id: Optional[str]`, `send_message: Optional[Callable]`). Values for `agent_name`, `stream_format`, `stage_id`, and `send_message` should align with how the agent under test invokes the LLM provider.
+        - **Completeness**: The concatenation of all `token` strings received by the `token_callback`, after being processed by `LLMProvider.extract_final_output()`, should equal the final output string stored by the agent (e.g., `context.clarifier_output`).
+- **Example Tests**: Refer to example tests in [test_clarifier_agent.py](mdc:tests/ags/test_clarifier_agent.py)
+
+## 4. Test Execution
+- **Automation**: Integrate test execution into the development workflow, for example, by running `pytest` in a shell script (`run.sh`) before starting the main application. The application should only start if all tests pass.
+
+## 5. API Key Handling for Tests
+- For unit tests where LLMs are mocked, ensure no real API keys are required during test collection or execution.
+- For integration tests involving local LLMs (like LM Studio or Ollama), these providers should be robust enough to initialize with a default dummy API key if a real `OPENAI_API_KEY` environment variable is not set. This prevents test failures related to API key checks when the intention is to use a local, non-key-dependent LLM.

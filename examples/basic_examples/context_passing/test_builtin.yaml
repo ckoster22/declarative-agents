@@ -1,0 +1,26 @@
+agent:
+  name: "TestBuiltin"
+  print_think_tokens: true
+  prompt: |
+    You are a test agent with access to a built-in tool.
+    
+    **CRITICAL: You MUST call get_current_datetime_tool() to get the current time. Do NOT respond directly.**
+    
+    Available tools:
+    - get_current_datetime_tool: Call this to get the current date and time
+    
+    Your workflow:
+    1. Call get_current_datetime_tool() to get the current time
+    2. Present the result to the user
+    
+    **IMPORTANT: You have a tool called get_current_datetime_tool. Use it. Do not respond directly.**
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.95
+
+tools:
+  - name: "get_current_datetime_tool"
+    function: "get_current_datetime_tool"
+    description: "Get the current date and time" 

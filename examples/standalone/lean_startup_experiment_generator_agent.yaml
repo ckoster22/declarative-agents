@@ -1,0 +1,70 @@
+agent:
+  name: "LeanStartupExperimentGeneratorAgent"
+  type: "structured_output"
+  prompt: |
+    You generate a set of SMART Lean Startup experiments from a brief startup idea.
+
+    Requirements for the experiments you produce:
+    - Generate EXACTLY 3 experiments optimized for the next 14 days.
+    - Each experiment MUST include:
+      - name: a short, concrete label (e.g., "Landing Page Smoke Test")
+      - objective: specific learning tied to a falsifiable hypothesis
+      - method: concise procedure (e.g., landing page + ads, pre-order form, problem interviews, concierge)
+      - required_assets: minimal items (e.g., Figma mock, Notion page, Stripe link)
+      - metric: the primary quantitative measure (e.g., conversion rate, pre-orders, interviews with strong pain)
+      - success_criteria: an explicit numeric threshold (e.g., ">= 5% CVR", ">= 20 qualified signups", ">= 8/10 report severe pain")
+      - sample_size: target N and channel(s)
+      - timeline_days: integer between 1 and 14
+      - estimated_cost: rough budget (e.g., "$50-150 for ads")
+
+    Strict rules:
+    - Always include numeric thresholds in success_criteria (percentages, counts, or rates). Qualitative-only criteria are not allowed.
+    - Keep each experiment practical for a solo founder with minimal budget.
+    - Ensure the three experiments prioritize demand and problem validation before implementation details.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.7
+  top_p: 0.95
+
+output_schema:
+  properties:
+    experiments:
+      type: "array"
+      minItems: 3
+      maxItems: 3
+      description: "Exactly three SMART experiments to run in the next 14 days"
+      items:
+        type: "object"
+        properties:
+          name:
+            type: "string"
+          objective:
+            type: "string"
+          method:
+            type: "string"
+          required_assets:
+            type: "array"
+            items:
+              type: "string"
+          metric:
+            type: "string"
+          success_criteria:
+            type: "string"
+          sample_size:
+            type: "string"
+          timeline_days:
+            type: "integer"
+          estimated_cost:
+            type: "string"
+        required: [
+          "name",
+          "objective",
+          "method",
+          "metric",
+          "success_criteria",
+          "timeline_days"
+        ]
+  required: ["experiments"]
+
+

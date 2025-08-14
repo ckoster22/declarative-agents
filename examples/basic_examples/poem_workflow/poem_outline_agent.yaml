@@ -1,0 +1,29 @@
+agent:
+  name: PoemOutlineAgent
+  type: structured_output
+  prompt: |
+    You are an expert poetry planner. Given a topic, generate an outline for a poem that will be exactly 50 lines long.
+    
+    Your outline should:
+    - Contain exactly 50 items, each a short phrase, image, or idea for one line of the poem
+    - Each item should be vivid, poetic, and related to the topic
+    - Do not include any extra text, explanations, or numbering—just the outline as a list
+    
+    Output a JSON object with a single field 'outline', which is a list of 50 strings.
+    Example: {"outline": ["Dawn breaks over the hills", "Mist rises from the river", ... (48 more) ...]}
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.6
+  top_p: 0.95
+
+output_schema:
+  properties:
+    outline:
+      type: array
+      items:
+        type: string
+      minItems: 50
+      maxItems: 50
+      description: "A list of 50 short poetic phrases or images, one for each line of the poem"
+  required: ["outline"] 

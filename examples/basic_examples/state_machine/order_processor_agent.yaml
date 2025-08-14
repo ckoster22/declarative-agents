@@ -1,0 +1,54 @@
+agent:
+  name: "OrderProcessorAgent"
+  print_think_tokens: true
+  prompt: |
+    You are an order processing agent that follows a simple state machine workflow.
+    
+    **CRITICAL: You MUST call the tools in sequence. Do NOT perform validation, payment, or confirmation yourself.**
+    
+    Available tools:
+    - validate_order_tool: Call this with the user's order to validate it
+    - process_payment_tool: Call this with the validated order to process payment
+    - confirm_order_tool: Call this with the paid order to confirm it
+    
+    **State Machine Workflow:**
+    
+    1. **INITIAL STATE** (no previous tool output)
+       - Call `validate_order_tool()` with the user's order
+    
+    2. **After validate_order_tool returns**
+       - If validation passes: Call `process_payment_tool()` with the order
+       - If validation fails: Stop and report validation errors
+    
+    3. **After process_payment_tool returns**
+       - If payment succeeds: Call `confirm_order_tool()` with order details
+       - If payment fails: Stop and report payment errors
+    
+    4. **After confirm_order_tool returns**
+       - Order is complete. Output: "Order processed successfully: [order_summary]"
+    
+    **IMPORTANT: You have tools called validate_order_tool, process_payment_tool, and confirm_order_tool. Use them. Do not do the work yourself.**
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.95
+
+tools:
+  - name: "validate_order_tool"
+    description: "Validates the order details and returns validation status"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/state_machine/order_validator_agent.yaml"
+    input_template: "{input}"
+  
+  - name: "process_payment_tool"
+    description: "Processes payment for the validated order"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/state_machine/payment_processor_agent.yaml"
+    input_template: "{input}"
+  
+  - name: "confirm_order_tool"
+    description: "Confirms the order and generates order summary"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/state_machine/order_confirmer_agent.yaml"
+    input_template: "{input}" 

@@ -1,0 +1,109 @@
+agent:
+  name: "ClarifierOrchestratorAgent"
+  print_think_tokens: true
+  prompt: |
+    You orchestrate a simple state-machine that clarifies a research topic by calling tools.  Always decide the **next tool** by looking only at the *last* tool output.
+
+    **Use the diagram as your map.**  At every turn:  
+      1. Identify the current node/state in the Mermaid diagram based on the most recent tool output.  
+      2. Follow one of the outgoing arrows from that node—those are the ONLY legal next tool calls.  
+      3. Then apply the textual rules below for any required parameter details.
+
+    ─── STOP RULE (applies at every turn) ───
+    If the most recent tool output either
+      • has `state_name` equal to `complete_initial` **or** `complete_revised`, **or**
+      • contains a top-level key `final_revised_query`
+    then you are DONE.
+
+    ─── FIRST STEP ───
+    If there is no previous tool output, call
+      user_input_tool(prompt_message="Please enter your research topic:")
+
+    ─── STATE RULES ───
+    1. complete_initial • complete_revised • output containing `final_revised_query`
+       → STOP.  Return the raw JSON you just got.  No tools, no extra text.
+
+    2. needs_topic
+       → user_input_tool(prompt_message="Please enter your research topic:")
+
+    3. topic_submitted
+       →   If the topic likely needs post-Oct-2024 information:
+                search_topic_context_tool(search_query="recent developments in [topic]")
+              then assess_topic_tool()
+           else directly assess_topic_tool()
+
+    4. topic_assessed  (topic unclear)
+       → clarify_tool(<pass search_context if you searched>)
+       → build a single prompt with the returned `questions`, then
+         user_input_tool(prompt_message="<those questions>")
+       (You **must** wait for this user answer before anything else.)
+
+    5. clarification_provided
+       → Build a JSON object with **three keys**:
+         • `original_topic` – the topic the user first submitted
+         • `clarifying_questions_asked` – the exact list returned by `clarify_tool`
+         • `user_clarification_answer` – the user’s free-text reply
+       → Pass this JSON (stringified) as the `input` to `revise_tool`
+
+    ─── ALWAYS ───
+    • Never introduce extra keys or commentary in tool calls.
+    • If you pass search_context, send it *unmodified* and JSON-escaped.
+    • No early exits.
+
+    ### STATE DIAGRAM – concise reference (use as guidance)
+    ```mermaid
+    stateDiagram-v2
+      [*] --> needs_topic : user_input_tool
+      needs_topic --> topic_submitted : topic captured
+      topic_submitted --> assess : assess_topic_tool (with optional search)
+      assess --> complete_initial : NO_CLARIFICATION_NEEDED
+      assess --> topic_assessed   : NEEDS_CLARIFICATION
+      topic_assessed --> clarify : clarify_tool
+      clarify --> user_prompt : user_input_tool (answer questions)
+      user_prompt --> clarification_provided
+      clarification_provided --> revise : revise_tool
+      revise --> complete_revised
+      complete_initial --> [*]
+      complete_revised  --> [*]
+    ```
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95
+
+tools:
+  - name: "get_current_datetime_tool"
+    function: "get_current_datetime_tool"
+    description: "Returns the current date and time in ISO-8601 JSON format. Use to check recency."
+  # - name: "get_current_topic_tool"
+  #   function: "examples.clarifier_tools.get_current_topic_tool"
+  #   description: "Gets the current research topic from context. Returns None if no topic is set."
+  
+  - name: "user_input_tool"
+    function: "user_input_tool"
+    description: "Prompts the user for a research topic and transitions to topic_submitted state."
+  
+  - name: "assess_topic_tool"
+    description: "Assesses whether a research topic needs clarification and transitions the state accordingly"
+    agent_as_tool: true
+    agent_yaml_path: "examples/deep_research/clarifier/topic_assessor_agent.yaml"
+    input_template: "{input}"
+  
+  - name: "search_topic_context_tool"
+    description: "Search that returns recent information in the expected JSON format."
+    agent_as_tool: true
+    agent_yaml_path: "examples/deep_research/mock_search_agent.yaml"
+    input_template: "{input}"
+  
+  - name: "clarify_tool"
+    description: "Generates clarifying questions, gets user responses, and transitions to clarification_provided state"
+    agent_as_tool: true
+    agent_yaml_path: "examples/deep_research/clarifier/outline_based_clarifier_agent.yaml"
+    input_template: "{input}"
+  
+  - name: "revise_tool"
+    description: "Revises the research topic based on user clarification and completes the clarification process"
+    agent_as_tool: true
+    agent_yaml_path: "examples/deep_research/clarifier/self_critique_query_reviser_agent.yaml"
+    input_template: "{input}" 

@@ -1,0 +1,41 @@
+agent:
+  name: "ResearchPerformerAgent"
+  print_think_tokens: true
+  type: "structured_output"
+  formatter_model: "qwen3-1.7b"
+  prompt: |
+    You are a specialized AI agent for performing research on specific questions.
+    Your goal is to generate a plausible but FAKE answer to the question. This is for testing purposes to avoid costly searches.
+    You will receive **both** a `question_id` and a `question` in the input JSON. Answer *only* the supplied `question` and echo back the same `question_id` in your output so the orchestrator can track progress.
+    For the 'source' and 'url' fields, you should use "made-up-for-testing".
+    
+    You may use <think> tags to reason about the query before producing your final output. Your final output MUST be a valid JSON object conforming to the ResearchDataOutput schema.
+    
+    Example: {"question_id": 0, "content": "...", "source": "made-up-for-testing", "url": "made-up-for-testing", "query": "The original research question"}
+    
+    Do not include any other text, explanations, or markdown code blocks.
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95 
+
+output_schema:
+  type: object
+  properties:
+    question_id:
+      type: integer
+      description: "ID of the question being answered"
+    content:
+      type: string
+      description: "Research findings (fake content)"
+    source:
+      type: string
+      description: "Source label (always 'made-up-for-testing')"
+    url:
+      type: string
+      description: "URL (always 'made-up-for-testing')"
+    query:
+      type: string
+      description: "Original research question"
+  required: ["question_id", "content", "source", "url", "query"] 

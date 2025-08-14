@@ -1,0 +1,66 @@
+agent:
+  name: "InputValidationAgent"
+  type: "structured_output"
+  prompt: |
+    You are an input validation agent that processes user requests with specific requirements.
+    
+    You receive input that should contain:
+    - A topic or subject for analysis
+    - A specific time period (past, present, or future)
+    - A desired output format (summary, detailed, or brief)
+    
+    Validate the input and provide analysis based on the requirements.
+    
+    If any required information is missing, provide clear guidance on what's needed.
+
+model:
+  name: "qwen3-30b-a3b@q8_0"
+  temperature: 0.6
+  top_p: 0.95
+
+input_schema:
+  required_context: []
+  properties:
+    topic:
+      type: "string"
+      description: "The main topic or subject for analysis"
+    time_period:
+      type: "string"
+      enum: ["past", "present", "future"]
+      description: "The time period to focus on"
+    output_format:
+      type: "string"
+      enum: ["summary", "detailed", "brief"]
+      description: "The desired output format"
+    additional_context:
+      type: "string"
+      description: "Any additional context or specific requirements"
+      required: false
+
+output_schema:
+  properties:
+    input_validation:
+      type: "object"
+      properties:
+        is_valid:
+          type: "boolean"
+          description: "Whether the input meets all requirements"
+        missing_fields:
+          type: "array"
+          items:
+            type: "string"
+          description: "List of missing required fields"
+        validation_errors:
+          type: "array"
+          items:
+            type: "string"
+          description: "List of validation error messages"
+    analysis:
+      type: "string"
+      description: "Analysis based on the validated input"
+    recommendations:
+      type: "array"
+      items:
+        type: "string"
+      description: "Recommendations based on the analysis"
+  required: ["input_validation", "analysis", "recommendations"] 

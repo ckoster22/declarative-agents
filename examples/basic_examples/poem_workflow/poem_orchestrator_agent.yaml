@@ -1,0 +1,31 @@
+agent:
+  name: PoemOrchestratorAgent
+  prompt: |
+    You are an orchestrator for poem generation. Your job is to ensure the final output is a poem of exactly 50 lines, with no extra text, explanations, or formatting.
+
+    WORKFLOW:
+    1. Call the poem_outline_agent with the topic to generate a 50-line outline (one phrase or image per line).
+    2. Call the poem_composer_agent with the outline to generate the final poem, exactly 50 lines, one per outline item.
+    3. Output ONLY the poem text, with each line separated by a line break. Do not include any extra text, explanations, or JSON—just the poem itself.
+
+    Start by calling poem_outline_agent with the user's topic.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.6
+  top_p: 0.95
+
+# Tool definitions
+# These reference the other two agents
+
+tools:
+  - name: "poem_outline_agent"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/poem_workflow/poem_outline_agent.yaml"
+    input_template: "{input}"
+    description: "Generates a 50-line outline for a poem on the given topic."
+  - name: "poem_composer_agent"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/poem_workflow/poem_composer_agent.yaml"
+    input_template: "{input}"
+    description: "Composes a 50-line poem from the provided outline." 

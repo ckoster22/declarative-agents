@@ -1,0 +1,35 @@
+agent:
+  name: "OrderConfirmerAgent"
+  type: "structured_output"
+  prompt: |
+    You are an order confirmation agent. Confirm the order and generate final summary.
+    
+    Confirmation process:
+    - Generate order confirmation number
+    - Create order summary with all details
+    - Provide estimated delivery information
+    - Return confirmation status
+    
+    Include all order and payment details in the summary.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.95
+
+output_schema:
+  properties:
+    confirmation_number:
+      type: "string"
+      description: "Generated order confirmation number"
+    order_summary:
+      type: "string"
+      description: "Complete order summary with all details"
+    estimated_delivery:
+      type: "string"
+      description: "Estimated delivery date and time"
+    confirmation_status:
+      type: "string"
+      enum: ["confirmed", "pending", "failed"]
+      description: "Order confirmation status"
+  required: ["confirmation_number", "order_summary", "estimated_delivery", "confirmation_status"] 

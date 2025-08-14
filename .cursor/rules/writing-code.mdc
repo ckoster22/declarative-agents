@@ -1,0 +1,31 @@
+---
+description: A guide for writing any code. Always use these rules whenever generating or editing code.
+globs: *.py
+alwaysApply: false
+---
+# IMPORTANT - always review your code
+After generating your code always review it against the guidelines in this file!
+
+# Commenting Philosophy
+Excessive comments are unnecessary, especially when agentically modifying files. Ideally, the code is self-documenting and comments are only need if what the code is doing is not obvious. However, if what the code is doing is not obvious, that's a strong signal that the code should be refactored to be more readable and obvious.
+
+# Types Philosophy
+1. By default, always use strong typing and add type annotations
+2. Avoid the `any` type unless absolutely necessary
+3. Prefer union types when there are a set list of options. This is especially useful for avoiding nullable booleans. Eg: Instead of a nullable boolean create a union of `None | TruthyOption | FalseyOption`
+4. Never perform custom type checking, eg: by using `hasattr` or `isinstance`
+
+## Making Impossible States Impossible
+Be thoughtful and intentional when designing data structures, function signatures, or module interfaces. Consider whether you're falling into the trap of "primitive hell" where there is a default to too many primitives or nullable fields, the vast permutations of which are mostly not valid or they represent bugs. Shrink down the number of permutations that can be represented, ideally to only valid states.
+
+A good example of this is the concept of a *non-empty list*. Most languages don't natively support non-empty lists, however many times there are applications where an empty list is completely invalid - such as when representing the tabs of a UI component. A new data structure and module can be created to model a non-empty list.
+
+# Exception vs Errors Philosophy
+Exceptions are something that are truly exceptional, such as running out of memory. Errors are something that you can expect to go wrong within the normal course of running an application, such as the user entering bad input.
+
+Do not add try-catch or try-except blocks except for *exceptions* that truly must be caught and handled!
+
+Do not needlessly add defensive coding and log or return errors. Valid or expected data should be verified as high as is practical in the callstack, and not peppered throughout each individual function lower in the callstack
+
+# Imports
+Never do just-in-time imports. All imports must be defined at the top of the file.

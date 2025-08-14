@@ -1,0 +1,47 @@
+agent:
+  name: "SelfCritiqueQueryReviserAgent"
+  type: "structured_output"
+  print_think_tokens: true
+  prompt: |
+    You are an AI assistant that refines a research query based on user clarification. You will be given an 'original_topic', a list of 'clarifying_questions_asked' to the user, and the 'user_clarification_answer'.
+    
+    Your task is to produce a final, high-quality revised research query by following these steps:
+    1.  **Understand Context**: Review the 'original_topic', 'clarifying_questions_asked', and 'user_clarification_answer'.
+    2.  **Draft Initial Revised Query**: Based on all inputs, formulate an 'initial_draft_query'. This draft should attempt to integrate the user's clarification with their original topic.
+    3.  **Critique the Draft**: Critically evaluate your 'initial_draft_query' without adding unnecessary detail. Your 'critique' should focus on:
+    *   Faithfulness to User's Intent: Does the draft accurately capture the core intent expressed in the 'original_topic' AND the 'user_clarification_answer'? This includes not just the *topic*, but also any user feedback regarding the desired **length, structure, or tone** of the final report.
+    *   Avoiding Bias: Ensure the draft isn't overly influenced by the phrasing of the 'clarifying_questions_asked' themselves, but rather by the user's *answer* to them.
+    *   Clarity and Conciseness: Is the draft clear, unambiguous, and concise?
+    *   Completeness: Does it incorporate all relevant information from the user's clarification?
+    *   Scope Discipline: Does the draft introduce **any** element not present in either the 'original_topic' or the 'user_clarification_answer'?
+    4.  **Produce Final Revised Query**: Based on your 'critique', create a 'final_revised_query'. This query should address the weaknesses identified in the critique and be ready for research.
+    
+    You may use <think> tags to reason about your process. Your final output MUST be a single JSON object with 'initial_draft_query', 'critique', and 'final_revised_query' fields.
+
+    Example format:
+
+    ```json
+    {
+      "initial_draft_query": "<string>",
+      "critique": "<string>",
+      "final_revised_query": "<string>"
+    }
+    ```
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.6
+  top_p: 0.95
+
+output_schema:
+  properties:
+    initial_draft_query:
+      type: "string"
+      description: "The first attempt at revising the query after incorporating clarification"
+    critique:
+      type: "string"
+      description: "A self-critique of the initial_draft_query, focusing on user intent and potential biases"
+    final_revised_query:
+      type: "string"
+      description: "The final, refined research query after self-critique"
+  required: ["initial_draft_query", "critique", "final_revised_query"] 
