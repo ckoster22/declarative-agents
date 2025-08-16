@@ -94,7 +94,10 @@ class ToolSpecification(BaseModel):
     )
     input_template: str = Field(
         default="{input}",
-        description="Template for agent input with {input} placeholder and other parameters",
+        description=(
+            "Template for agent input. Supports {input} and context placeholders like "
+            "{AgentName}, {AgentName.output}, or nested {AgentName.key.subkey}. Values are JSON-encoded."
+        ),
     )
 
     @model_validator(mode="after")

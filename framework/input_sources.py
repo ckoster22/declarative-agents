@@ -5,7 +5,7 @@ This module handles automatic input source resolution for agent tools,
 including file contents and template formatting.
 """
 
-from typing import Optional, Any
+from typing import Optional
 from framework.types import ToolSpecification
 from framework.context import AgentContext
 import json
@@ -50,7 +50,7 @@ class InputSourceHandler:
             if agent_name not in context.agent_outputs:
                 return "{" + path + "}"
 
-            value: Any = context.agent_outputs.get(agent_name)
+            value: object = context.agent_outputs.get(agent_name)
 
             # Interpret a special segment name 'output' as an alias to the agent's full output.
             # For dict outputs, 'output' simply returns the entire dict.
@@ -65,21 +65,13 @@ class InputSourceHandler:
                 if isinstance(value, dict) and segment in value:
                     value = value[segment]
                 else:
-                    # Cannot resolve further; leave placeholder unchanged
                     return "{" + path + "}"
 
-            # Final serialization: JSON for non-strings and complex types; raw for strings
-            if isinstance(value, (dict, list, bool, int, float)):
-                try:
-                    return json.dumps(value, ensure_ascii=False)
-                except Exception:
-                    # Fallback to str if JSON encoding fails
-                    return str(value)
-            elif value is None:
-                return "null"
-            else:
+            # Final serialization: always JSON-encode so templates can form valid JSON safely
+            try:
+                return json.dumps(value, ensure_ascii=False)
+            except Exception:
                 return str(value)
-
         # Replace all placeholders
         def _replacer(match: re.Match[str]) -> str:
             keypath = match.group(1)

@@ -221,7 +221,10 @@ class AgentSpecification:
             result = await self.structured_output_agent.run(
                 full_input
             )
-            return result.model_dump()
+            structured = result.model_dump()
+            if context is not None:
+                context.add_output(self.definition.name, structured)
+            return structured
 
 
 
@@ -303,7 +306,10 @@ class AgentSpecification:
         # Ensure a newline before returning the final result
         print()
 
-        return self._extract_output(streamed)
+        output = self._extract_output(streamed)
+        if context is not None:
+            context.add_output(self.definition.name, output)
+        return output
 
     def _prepare_input(self, input_data: str, context: Optional[AgentContext]) -> str:
         """Prepare the full input including context if available."""
