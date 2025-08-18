@@ -312,21 +312,7 @@ class AgentSpecification:
         return output
 
     def _prepare_input(self, input_data: str, context: Optional[AgentContext]) -> str:
-        """Prepare the full input including context if available."""
-        # Only include verbose context preamble when the YAML explicitly requests
-        # certain prior agent outputs via input_schema.required_context. Otherwise,
-        # rely on input_template placeholder injection to pass specific data.
-        if context and self.definition.input_schema.required_context:
-            context_input = ContextFormatter.prepare_context_input(
-                context, self.definition.input_schema, self.definition.name
-            )
-            if context_input:
-                return (
-                    f"{context_input}\n\nTask: {input_data}"
-                    if input_data
-                    else context_input
-                )
-
+        """Return the raw input only; context is injected via input_template placeholders."""
         return input_data
 
     def _extract_output(self, result: RunResult) -> AgentOutput:
