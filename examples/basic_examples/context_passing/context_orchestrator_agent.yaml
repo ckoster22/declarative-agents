@@ -8,11 +8,13 @@ agent:
     
     Available tools:
     - data_collector_tool: Call this with the user's input to extract structured data
-    - data_analyzer_tool: Call this with the collected data for analysis
+    - data_analyzer_tool: Call this with the collected data for analysis. The framework will inject
+      the collected JSON for you via placeholders in the tool's input template.
     
     Your workflow:
     1. Call data_collector_tool() with the user's input
-    2. Call data_analyzer_tool() with the result from step 1
+    2. Call data_analyzer_tool() next; you do not need to paste the previous output, it will be
+       injected automatically via the tool's input_template.
     3. Present both the collected data and analysis results to the user
     
     **IMPORTANT: You have tools called data_collector_tool and data_analyzer_tool. Use them. Do not do the work yourself.**
@@ -33,4 +35,5 @@ tools:
     description: "Analyzes structured data and provides insights"
     agent_as_tool: true
     agent_yaml_path: "examples/basic_examples/context_passing/data_analyzer_agent.yaml"
-    input_template: "{input}" 
+    # Inject the full structured output from DataCollectorAgent as JSON under a field the analyzer can read
+    input_template: '{ "collected": {DataCollectorAgent.output} }'
