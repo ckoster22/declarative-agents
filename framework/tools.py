@@ -16,7 +16,8 @@ from framework.types import ToolSpecification
 from framework.file_tools import read_file, append_to_file, get_temp_directory_info
 from framework.user_tools import user_input_tool, get_current_datetime_tool
 from framework.input_sources import InputSourceHandler
-from framework.tool_context import set_current_context, get_current_context
+from framework.tool_context import get_current_context
+from framework.sandbox_tools import run_python_sandboxed
 
 
 class ToolFunction(Protocol):
@@ -60,6 +61,7 @@ class ToolLoader:
         "user_input_tool": user_input_tool,
         "get_current_datetime_tool": get_current_datetime_tool,
         "get_temp_directory_info": get_temp_directory_info,
+        "run_python_sandboxed": run_python_sandboxed,
     
     }
 
