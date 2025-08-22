@@ -136,50 +136,6 @@ _judge_agent: Optional[Agent] = None
 _judge_formatter_agent: Optional[Agent] = None
 
 
-# --- Criteria normalization ---------------------------------------------------
-
-def _normalize_evaluation_criteria(criteria_input: Any) -> Tuple[str, List[str], str]:
-    """Normalize evaluation criteria into (preamble, [criteria...], closing).
-
-    Accepts any of the following shapes:
-      - str: split into paragraphs by blank lines. If >=3 paragraphs,
-        first is preamble, last is closing, middle paragraphs are criteria.
-        If 2 paragraphs, treat as (preamble, [criteria], ''). If 1 paragraph,
-        treat as ('', [criteria], '').
-      - list/tuple: treated as criteria list, with empty preamble/closing.
-      - dict: expects optional keys 'preamble' (str), 'criteria' (list/str), 'closing' (str).
-    """
-    # Dict form
-    if isinstance(criteria_input, dict):
-        preamble = str(criteria_input.get("preamble", "")).strip()
-        closing = str(criteria_input.get("closing", "")).strip()
-        raw_criteria = criteria_input.get("criteria", [])
-        if isinstance(raw_criteria, (list, tuple)):
-            criteria_list = [str(c).strip() for c in raw_criteria if str(c).strip()]
-        elif raw_criteria is None:
-            criteria_list = []
-        else:
-            c = str(raw_criteria).strip()
-            criteria_list = [c] if c else []
-        return preamble, criteria_list, closing
-
-    # Sequence form
-    if isinstance(criteria_input, (list, tuple)):
-        criteria_list = [str(c).strip() for c in criteria_input if str(c).strip()]
-        return "", criteria_list, ""
-
-    # Fallback to string form
-    s = str(criteria_input or "").strip()
-    if not s:
-        return "", [], ""
-
-    # Split into paragraphs by blank lines
-    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", s) if p.strip()]
-    if len(paragraphs) >= 3:
-        return paragraphs[0], paragraphs[1:-1], paragraphs[-1]
-    if len(paragraphs) == 2:
-        return paragraphs[0], [paragraphs[1]], ""
-    return "", [paragraphs[0]], ""
 
 
 # ---------------------------------------------------------------------------
@@ -190,7 +146,7 @@ def _normalize_evaluation_criteria(criteria_input: Any) -> Tuple[str, List[str],
 async def evaluate_agent_against_suite(
     agent_spec: AgentSpecification,
     test_suite: List[Dict[str, Any]],
-    evaluation_criteria: Any,
+    evaluation_criteria: List[str],
 ) -> None:
     """Run a test suite against an agent specification and print a summary.
 
@@ -198,8 +154,7 @@ async def evaluate_agent_against_suite(
     `StructuredOutputAgent` chain so the formatter model guarantees valid JSON.
     Otherwise we fall back to the original direct-agent execution path.
 
-    The judge now evaluates the agent output independently against each criterion,
-    to prevent earlier judgments influencing later ones.
+    The judge now evaluates the agent output independently against each criterion.
     """
 
     judge_agent, judge_formatter_agent = _get_judge_agents()
@@ -313,10 +268,9 @@ async def evaluate_agent_against_suite(
             logger.debug("No parseable output produced by the agent; skipping judge phase.")
             continue
 
-        # Normalize criteria once, then judge per criterion independently
-        preamble, criteria_list, closing = _normalize_evaluation_criteria(evaluation_criteria)
+        # Judge per criterion independently
+        criteria_list = [str(c).strip() for c in (evaluation_criteria or []) if str(c).strip()]
         if not criteria_list:
-            # Ensure at least one judging pass even if criteria is empty
             criteria_list = [""]
 
         per_criterion_results: List[EvaluationResult] = []
@@ -325,13 +279,9 @@ async def evaluate_agent_against_suite(
             judge_prompt = f"""The current date is June 2025.
 
 Please evaluate the following agent output for logical correctness.
-The output has already been validated as parsable. You only need to check the content against the criterion below.
-
-{preamble}
+The output has already been validated as parsable. You only need to check the content against the single evaluation criterion below.
 
 Evaluation Criterion:\n```\n{single_criterion}\n```
-
-{closing}
 
 **Original Prompt:**\n```\n{agent_input}\n```\n\n**Agent's Parsed Output (as JSON):**\n```json\n{parsed_output}\n```\n\n**Test Case Details (for context):**\n```json\n{test_case}\n```"""
 
@@ -473,26 +423,25 @@ def _load_eval_module(yaml_path: str) -> ModuleType:
     return module
 
 
-def _extract_suite_and_criteria(module: ModuleType) -> Tuple[List[Dict[str, Any]], Any]:
-    """Extract the test suite list and criteria object from the module via naming convention.
+def _extract_suite_and_criteria(module: ModuleType) -> Tuple[List[Dict[str, Any]], List[str]]:
+    """Extract the test suite list and criteria list from the module via naming convention.
 
-    The criteria must be a list/tuple of strings, or a dict with
-    optional 'preamble' (str), 'criteria' (list/str), and 'closing' (str).
+    The criteria must be a list/tuple of strings.
     """
 
     test_suite: Optional[List[Dict[str, Any]]] = None
-    criteria: Optional[Any] = None
+    criteria: Optional[List[str]] = None
 
     for attr_name, attr_val in vars(module).items():
         if attr_name.endswith("_test_suite") and isinstance(attr_val, list):
             test_suite = attr_val
-        elif attr_name.endswith("_criteria") and isinstance(attr_val, (list, tuple, dict)):
-            criteria = attr_val
+        elif attr_name.endswith("_criteria") and isinstance(attr_val, (list, tuple)):
+            criteria = [str(c) for c in attr_val]
 
     if test_suite is None or criteria is None:
         raise AttributeError(
             "Evaluation module must define variables ending with `_test_suite` (list) "
-            "and `_criteria` (list | tuple | dict)."
+            "and `_criteria` (list | tuple of strings)."
         )
 
     return test_suite, criteria
