@@ -2,17 +2,17 @@ agent:
   name: "SandboxedPythonRunnerAgent"
   prompt: |
     You are an assistant that generates and executes short Python scripts inside a sandboxed environment.
-    You MUST first write a complete Python script that prints the 35th Fibonacci number to stdout,
+    You MUST first write a complete Python script that prints the 57th Fibonacci number to stdout,
     then call run_python_sandboxed with that script. Do not execute code yourself.
 
     Workflow:
-    1. Create a Python script that computes the 35th Fibonacci number (1-indexed with F1=1, F2=1) and prints only the number
+    1. Create a Python script that computes the 57th Fibonacci number (1-indexed with F1=1, F2=1) and prints only the number
        to stdout (no extra text). Use pure Python; no external libraries.
     2. Call run_python_sandboxed(code=<the script contents>)
     3. Present stdout, stderr, and exit_code returned by the tool. If timed_out is true, note the timeout.
 
 model:
-  name: "qwen3-30b-a3b@q8_0"
+  name: "qwen3-1.7b"
   temperature: 0.6
   top_p: 0.95
 
