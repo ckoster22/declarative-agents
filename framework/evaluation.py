@@ -264,7 +264,7 @@ async def evaluate_agent_against_suite(
                 parsed_output = agent_stream.final_output_as(agent_spec.output_model)
 
         if parsed_output is None:
-            case_rows.append({"id": test_id, "result": "FAIL"})
+            case_rows.append({"id": test_id, "result": "FAIL", "criteria": "0/0"})
             logger.debug("No parseable output produced by the agent; skipping judge phase.")
             continue
 
@@ -347,27 +347,31 @@ Evaluation Criterion:\n```\n{single_criterion}\n```
 
         # Aggregate: overall pass only if all criteria passed
         overall_pass = all(r.passed for r in per_criterion_results) if per_criterion_results else False
+        passed_count = sum(1 for r in per_criterion_results if r.passed)
+        total_criteria = len(per_criterion_results)
+        failed_indices = [str(i + 1) for i, r in enumerate(per_criterion_results) if not r.passed]
+        criteria_summary = f"{passed_count}/{total_criteria}" + (f" (failed: {', '.join(failed_indices)})" if failed_indices else "")
 
         if overall_pass:
             pass_count += 1
-            case_rows.append({"id": test_id, "result": "PASS"})
+            case_rows.append({"id": test_id, "result": "PASS", "criteria": criteria_summary})
             logger.info("[PASS] Test ID: %s (all %s criteria passed)", test_id, len(per_criterion_results))
         else:
-            case_rows.append({"id": test_id, "result": "FAIL"})
-            failed_indices = [str(i + 1) for i, r in enumerate(per_criterion_results) if not r.passed]
+            case_rows.append({"id": test_id, "result": "FAIL", "criteria": criteria_summary})
             logger.warning("[FAIL] Test ID: %s (failed criteria: %s)", test_id, ", ".join(failed_indices) or "n/a")
 
     # Summary
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Test ID", width=30, no_wrap=True)
     table.add_column("Result", justify="right", width=10)
+    table.add_column("Criteria", justify="left", width=30)
     for row in case_rows:
         result_text = Text(row["result"])
         if row["result"] == "PASS":
             result_text.stylize("bold green")
         else:
             result_text.stylize("bold red")
-        table.add_row(row["id"], result_text)
+        table.add_row(row["id"], result_text, row.get("criteria", ""))
     
     console.print(table)
     
