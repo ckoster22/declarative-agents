@@ -16,13 +16,15 @@ Shows how to:
 ToolIntegrationAgent
 ├── weather_lookup_tool (Custom Python function)
 ├── currency_converter_tool (Custom Python function)
-└── text_analyzer_tool (Custom Python function)
+├── text_analyzer_tool (Custom Python function)
+└── run_python_sandboxed (Framework built-in; sandboxed execution)
 ```
 
 ## Files
 
 - `tool_agent.yaml` - Agent that uses custom tools
 - `custom_tools.py` - Python module containing custom tool functions
+- `docker_python_runner_agent.yaml` - Agent that executes Python in a sandbox
 - `README.md` - This documentation
 
 ## Key Concepts Demonstrated
@@ -53,6 +55,11 @@ ToolIntegrationAgent
 - **Features**: Word count, sentence count, sentiment analysis
 - **Returns**: Statistics, sentiment, timestamp
 
+### Sandboxed Python Runner
+- **Function**: `run_python_sandboxed(code: str, timeout_seconds?: int, memory_mb?: int, cpu_limit?: float)`
+- **Purpose**: Run short Python code safely in a locked-down sandbox (no network, read-only FS)
+- **Returns**: JSON with `stdout`, `stderr`, `exit_code`, `timed_out`, `diagnostics`
+
 ## Usage
 
 Test weather lookup:
@@ -68,6 +75,11 @@ python -m framework.cli run examples/basic_examples/tool_integration/tool_agent.
 Test text analysis:
 ```bash
 python -m framework.cli run examples/basic_examples/tool_integration/tool_agent.yaml "Analyze this text: I love this amazing product! It's wonderful and makes me happy."
+```
+
+Generate-and-run a Fibonacci script in the sandbox:
+```bash
+python -m framework.cli run examples/basic_examples/tool_integration/docker_python_runner_agent.yaml "Calculate the 15th Fibonacci number"
 ```
 
 ## Expected Behavior
