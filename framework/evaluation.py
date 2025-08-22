@@ -136,89 +136,50 @@ _judge_agent: Optional[Agent] = None
 _judge_formatter_agent: Optional[Agent] = None
 
 
-def _configure_evaluation_logging(logs_dir: Path) -> None:
-    """Ensure evaluation logs go to both stdout and a rotating file.
+# --- Criteria normalization ---------------------------------------------------
 
-    The configuration is idempotent; repeated calls will be no-ops.
+def _normalize_evaluation_criteria(criteria_input: Any) -> Tuple[str, List[str], str]:
+    """Normalize evaluation criteria into (preamble, [criteria...], closing).
+
+    Accepts any of the following shapes:
+      - str: split into paragraphs by blank lines. If >=3 paragraphs,
+        first is preamble, last is closing, middle paragraphs are criteria.
+        If 2 paragraphs, treat as (preamble, [criteria], ''). If 1 paragraph,
+        treat as ('', [criteria], '').
+      - list/tuple: treated as criteria list, with empty preamble/closing.
+      - dict: expects optional keys 'preamble' (str), 'criteria' (list/str), 'closing' (str).
     """
-    global _EVAL_LOGGING_CONFIGURED
-    if _EVAL_LOGGING_CONFIGURED:
-        return
+    # Dict form
+    if isinstance(criteria_input, dict):
+        preamble = str(criteria_input.get("preamble", "")).strip()
+        closing = str(criteria_input.get("closing", "")).strip()
+        raw_criteria = criteria_input.get("criteria", [])
+        if isinstance(raw_criteria, (list, tuple)):
+            criteria_list = [str(c).strip() for c in raw_criteria if str(c).strip()]
+        elif raw_criteria is None:
+            criteria_list = []
+        else:
+            c = str(raw_criteria).strip()
+            criteria_list = [c] if c else []
+        return preamble, criteria_list, closing
 
-    logs_dir.mkdir(parents=True, exist_ok=True)
+    # Sequence form
+    if isinstance(criteria_input, (list, tuple)):
+        criteria_list = [str(c).strip() for c in criteria_input if str(c).strip()]
+        return "", criteria_list, ""
 
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
+    # Fallback to string form
+    s = str(criteria_input or "").strip()
+    if not s:
+        return "", [], ""
 
-    formatter = logging.Formatter(
-        fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-    # File handler
-    file_handler = logging.FileHandler(logs_dir / "evaluation.log", mode="a", encoding="utf-8")
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
-
-    # Stream handler to stdout
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging.INFO)
-    stream_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-
-    _EVAL_LOGGING_CONFIGURED = True
-
-
-def _get_judge_agents() -> Tuple[Agent, Agent]:
-    """Create (or return cached) judge + formatter agents."""
-
-    global _judge_agent, _judge_formatter_agent
-
-    if _judge_agent and _judge_formatter_agent:
-        return _judge_agent, _judge_formatter_agent
-
-    judge_instructions = """
-You are a meticulous and impartial AI evaluator. Your task is to assess the output of another AI agent based on a given set of criteria.
-
-You will be provided with:
-1.  The `agent_output` that the agent produced.
-2.  The `evaluation_criteria` that you must strictly follow to determine if the test passes or fails.
-3.  The `test_case` details for context.
-
-CRITICAL RULE: Your decision about whether the test passes or fails MUST be based *exclusively* on the `evaluation_criteria`. The `test_case` (including the original `prompt`) is provided for context only. Do NOT infer the agent's expected behavior from the `prompt`; use only the `evaluation_criteria`.
-
-Your process is to:
-1.  **Understand the Goal**: Read the `evaluation_criteria` carefully to understand what constitutes a "pass".
-2.  **Analyze the Output**: Scrutinize the `agent_output` and compare it against the rules in the `evaluation_criteria`.
-3.  **Make a Decision**: Based *only* on the `evaluation_criteria`, decide if the `agent_output` passes the test.
-4.  **Formulate Reasoning**: In the `reasoning` field, explain *why* the test passed or failed by referencing the specific rule(s) from the `evaluation_criteria` that were met or not met.
-5.  **Set Final Verdict**: Set the `passed` field to `true` if the test passed, and `false` if it failed.
-
-You may use <think> tags to reason about the query before producing your final output. Your final output must be a single, valid JSON object with 'passed' (boolean) and 'reasoning' (string) fields.
-"""
-
-    _judge_agent = Agent(
-        name="EvaluationJudgeAgent",
-        instructions=judge_instructions,
-        model=OpenAIChatCompletionsModel(model=_QWEN_MODEL_NAME, openai_client=_client),
-        model_settings=_QWEN_MODEL_SETTINGS,
-    )
-
-    _judge_formatter_agent = Agent(
-        name="EvaluationJudgeFormatterAgent",
-        instructions=(
-            "You are a formatter agent. Your task is to convert the user's input text into a valid JSON "
-            "object conforming to the EvaluationResult schema. The schema requires a 'passed' field (boolean) "
-            "and a 'reasoning' field (string). Your output MUST be ONLY the JSON object."
-        ),
-        model=OpenAIChatCompletionsModel(model=_QWEN_MODEL_NAME, openai_client=_client),
-        model_settings=_QWEN_MODEL_SETTINGS,
-        output_type=EvaluationResult,
-    )
-
-    return _judge_agent, _judge_formatter_agent
+    # Split into paragraphs by blank lines
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", s) if p.strip()]
+    if len(paragraphs) >= 3:
+        return paragraphs[0], paragraphs[1:-1], paragraphs[-1]
+    if len(paragraphs) == 2:
+        return paragraphs[0], [paragraphs[1]], ""
+    return "", [paragraphs[0]], ""
 
 
 # ---------------------------------------------------------------------------
@@ -229,13 +190,16 @@ You may use <think> tags to reason about the query before producing your final o
 async def evaluate_agent_against_suite(
     agent_spec: AgentSpecification,
     test_suite: List[Dict[str, Any]],
-    evaluation_criteria: str,
+    evaluation_criteria: Any,
 ) -> None:
     """Run a test suite against an agent specification and print a summary.
 
     If the YAML defines `type: "structured_output"` we invoke the full two-step
     `StructuredOutputAgent` chain so the formatter model guarantees valid JSON.
     Otherwise we fall back to the original direct-agent execution path.
+
+    The judge now evaluates the agent output independently against each criterion,
+    to prevent earlier judgments influencing later ones.
     """
 
     judge_agent, judge_formatter_agent = _get_judge_agents()
@@ -346,77 +310,102 @@ async def evaluate_agent_against_suite(
 
         if parsed_output is None:
             case_rows.append({"id": test_id, "result": "FAIL"})
-            logger.debug("Raw output was: %s", agent_stream.final_output)
+            logger.debug("No parseable output produced by the agent; skipping judge phase.")
             continue
 
-        # 2. AI Judge phase ------------------------------------------------
-        # 2. Ask the AI judge to decide pass/fail
-        judge_prompt = f"""The current date is June 2025.
+        # Normalize criteria once, then judge per criterion independently
+        preamble, criteria_list, closing = _normalize_evaluation_criteria(evaluation_criteria)
+        if not criteria_list:
+            # Ensure at least one judging pass even if criteria is empty
+            criteria_list = [""]
+
+        per_criterion_results: List[EvaluationResult] = []
+
+        for crit_index, single_criterion in enumerate(criteria_list, start=1):
+            judge_prompt = f"""The current date is June 2025.
 
 Please evaluate the following agent output for logical correctness.
-The output has already been validated as *parsable*. You only need to check the content against the criteria.
+The output has already been validated as parsable. You only need to check the content against the criterion below.
 
-**Original Prompt:**\n```\n{agent_input}\n```\n\n**Agent's Parsed Output (as JSON):**\n```json\n{parsed_output}\n```\n\n**Evaluation Criteria:**\n```\n{evaluation_criteria}\n```\n\n**Test Case Details (for context):**\n```json\n{test_case}\n```"""
+{preamble}
 
-        # Stream judge output to stdout and log file
-        judge_streamed = Runner.run_streamed(
-            starting_agent=judge_agent,
-            input=judge_prompt,
-        )
+Evaluation Criterion:\n```\n{single_criterion}\n```
 
-        judge_raw_chunks: list[str] = []
-        async for event in judge_streamed.stream_events():
-            text_delta = _extract_text_delta_from_event(event)
-            if text_delta is None:
-                continue
-            print(text_delta, end="", flush=True)
-            judge_raw_chunks.append(text_delta)
-        print()
-        if judge_raw_chunks:
-            logger.info("Judge raw stream output (token-by-token):\n%s", "".join(judge_raw_chunks))
+{closing}
 
-        judge_output_text = str(judge_streamed.final_output)
+**Original Prompt:**\n```\n{agent_input}\n```\n\n**Agent's Parsed Output (as JSON):**\n```json\n{parsed_output}\n```\n\n**Test Case Details (for context):**\n```json\n{test_case}\n```"""
 
-        # Stream formatter output as well
-        formatter_streamed = Runner.run_streamed(
-            starting_agent=judge_formatter_agent,
-            input=judge_output_text,
-        )
-
-        formatter_raw_chunks: list[str] = []
-        async for event in formatter_streamed.stream_events():
-            text_delta = _extract_text_delta_from_event(event)
-            if text_delta is None:
-                continue
-            print(text_delta, end="", flush=True)
-            formatter_raw_chunks.append(text_delta)
-        print()
-        if formatter_raw_chunks:
-            logger.info(
-                "Judge formatter raw stream output (token-by-token):\n%s",
-                "".join(formatter_raw_chunks),
+            # Stream judge output to stdout and log file
+            judge_streamed = Runner.run_streamed(
+                starting_agent=judge_agent,
+                input=judge_prompt,
             )
 
-        eval_result = formatter_streamed.final_output_as(EvaluationResult)
+            judge_raw_chunks: list[str] = []
+            async for event in judge_streamed.stream_events():
+                text_delta = _extract_text_delta_from_event(event)
+                if text_delta is None:
+                    continue
+                print(text_delta, end="", flush=True)
+                judge_raw_chunks.append(text_delta)
+            print()
+            if judge_raw_chunks:
+                logger.info(
+                    "Judge raw stream output for criterion %s (token-by-token):\n%s",
+                    crit_index,
+                    "".join(judge_raw_chunks),
+                )
 
-        if eval_result is None:
-            case_rows.append({"id": test_id, "result": "FAIL"})
-            logger.warning(
-                "[FAIL] %s – judge formatter could not parse result; raw: %s",
-                test_id,
-                formatter_streamed.final_output,
+            judge_output_text = str(judge_streamed.final_output)
+
+            # Stream formatter output as well
+            formatter_streamed = Runner.run_streamed(
+                starting_agent=judge_formatter_agent,
+                input=judge_output_text,
             )
-            continue
 
-        if eval_result.passed:
+            formatter_raw_chunks: list[str] = []
+            async for event in formatter_streamed.stream_events():
+                text_delta = _extract_text_delta_from_event(event)
+                if text_delta is None:
+                    continue
+                print(text_delta, end="", flush=True)
+                formatter_raw_chunks.append(text_delta)
+            print()
+            if formatter_raw_chunks:
+                logger.info(
+                    "Judge formatter raw stream output for criterion %s (token-by-token):\n%s",
+                    crit_index,
+                    "".join(formatter_raw_chunks),
+                )
+
+            eval_result = formatter_streamed.final_output_as(EvaluationResult)
+
+            if eval_result is None:
+                logger.warning(
+                    "[FAIL] %s – judge formatter could not parse result for criterion %s; raw: %s",
+                    test_id,
+                    crit_index,
+                    formatter_streamed.final_output,
+                )
+                per_criterion_results.append(EvaluationResult(passed=False, reasoning="Formatter could not parse result"))
+            else:
+                per_criterion_results.append(eval_result)
+                level = logging.INFO if eval_result.passed else logging.WARNING
+                logger.log(level, "Criterion %s passed: %s", crit_index, eval_result.passed)
+                logger.info("Criterion %s reasoning: %s", crit_index, eval_result.reasoning)
+
+        # Aggregate: overall pass only if all criteria passed
+        overall_pass = all(r.passed for r in per_criterion_results) if per_criterion_results else False
+
+        if overall_pass:
             pass_count += 1
             case_rows.append({"id": test_id, "result": "PASS"})
-            logger.info("[PASS] Test ID: %s", test_id)
+            logger.info("[PASS] Test ID: %s (all %s criteria passed)", test_id, len(per_criterion_results))
         else:
             case_rows.append({"id": test_id, "result": "FAIL"})
-            logger.warning("[FAIL] Test ID: %s", test_id)
-
-        logger.info("Judge reasoning: %s\n", eval_result.reasoning)
+            failed_indices = [str(i + 1) for i, r in enumerate(per_criterion_results) if not r.passed]
+            logger.warning("[FAIL] Test ID: %s (failed criteria: %s)", test_id, ", ".join(failed_indices) or "n/a")
 
     # Summary
     table = Table(show_header=True, header_style="bold magenta")
@@ -484,25 +473,117 @@ def _load_eval_module(yaml_path: str) -> ModuleType:
     return module
 
 
-def _extract_suite_and_criteria(module: ModuleType) -> Tuple[List[Dict[str, Any]], str]:
-    """Extract the test suite list and criteria string from the module via naming convention."""
+def _extract_suite_and_criteria(module: ModuleType) -> Tuple[List[Dict[str, Any]], Any]:
+    """Extract the test suite list and criteria object from the module via naming convention.
+
+    The criteria may be a str, list/tuple of strings, or a dict with
+    optional 'preamble', 'criteria' (list/str), and 'closing'.
+    """
 
     test_suite: Optional[List[Dict[str, Any]]] = None
-    criteria: Optional[str] = None
+    criteria: Optional[Any] = None
 
     for attr_name, attr_val in vars(module).items():
         if attr_name.endswith("_test_suite") and isinstance(attr_val, list):
             test_suite = attr_val
-        elif attr_name.endswith("_criteria") and isinstance(attr_val, str):
+        elif attr_name.endswith("_criteria") and isinstance(attr_val, (str, list, tuple, dict)):
             criteria = attr_val
 
     if test_suite is None or criteria is None:
         raise AttributeError(
             "Evaluation module must define variables ending with `_test_suite` (list) "
-            "and `_criteria` (str)."
+            "and `_criteria` (str | list | dict)."
         )
 
     return test_suite, criteria
+
+
+# --- Helper functions -------------------------------------------------------
+
+
+def _configure_evaluation_logging(logs_dir: Path) -> None:
+    """Ensure evaluation logs go to both stdout and a rotating file.
+
+    The configuration is idempotent; repeated calls will be no-ops.
+    """
+    global _EVAL_LOGGING_CONFIGURED
+    if _EVAL_LOGGING_CONFIGURED:
+        return
+
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+    formatter = logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # File handler
+    file_handler = logging.FileHandler(logs_dir / "evaluation.log", mode="a", encoding="utf-8")
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+
+    # Stream handler to stdout
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setLevel(logging.INFO)
+    stream_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+    _EVAL_LOGGING_CONFIGURED = True
+
+
+def _get_judge_agents() -> Tuple[Agent, Agent]:
+    """Create (or return cached) judge + formatter agents."""
+
+    global _judge_agent, _judge_formatter_agent
+
+    if _judge_agent and _judge_formatter_agent:
+        return _judge_agent, _judge_formatter_agent
+
+    judge_instructions = """
+You are a meticulous and impartial AI evaluator. Your task is to assess the output of another AI agent based on a given set of criteria.
+
+You will be provided with:
+1.  The `agent_output` that the agent produced.
+2.  The `evaluation_criteria` that you must strictly follow to determine if the test passes or fails.
+3.  The `test_case` details for context.
+
+CRITICAL RULE: Your decision about whether the test passes or fails MUST be based *exclusively* on the `evaluation_criteria`. The `test_case` (including the original `prompt`) is provided for context only. Do NOT infer the agent's expected behavior from the `prompt`; use only the `evaluation_criteria`.
+
+Your process is to:
+1.  **Understand the Goal**: Read the `evaluation_criteria` carefully to understand what constitutes a "pass".
+2.  **Analyze the Output**: Scrutinize the `agent_output` and compare it against the rules in the `evaluation_criteria`.
+3.  **Make a Decision**: Based *only* on the `evaluation_criteria`, decide if the `agent_output` passes the test.
+4.  **Formulate Reasoning**: In the `reasoning` field, explain *why* the test passed or failed by referencing the specific rule(s) from the `evaluation_criteria` that were met or not met.
+5.  **Set Final Verdict**: Set the `passed` field to `true` if the test passed, and `false` if it failed.
+
+You may use <think> tags to reason about the query before producing your final output. Your final output must be a single, valid JSON object with 'passed' (boolean) and 'reasoning' (string) fields.
+"""
+
+    _judge_agent = Agent(
+        name="EvaluationJudgeAgent",
+        instructions=judge_instructions,
+        model=OpenAIChatCompletionsModel(model=_QWEN_MODEL_NAME, openai_client=_client),
+        model_settings=_QWEN_MODEL_SETTINGS,
+    )
+
+    _judge_formatter_agent = Agent(
+        name="EvaluationJudgeFormatterAgent",
+        instructions=(
+            "You are a formatter agent. Your task is to convert the user's input text into a valid JSON "
+            "object conforming to the EvaluationResult schema. The schema requires a 'passed' field (boolean) "
+            "and a 'reasoning' field (string). Your output MUST be ONLY the JSON object."
+        ),
+        model=OpenAIChatCompletionsModel(model=_QWEN_MODEL_NAME, openai_client=_client),
+        model_settings=_QWEN_MODEL_SETTINGS,
+        output_type=EvaluationResult,
+    )
+
+    return _judge_agent, _judge_formatter_agent
 
 
 # --- Public entrypoint ------------------------------------------------------
