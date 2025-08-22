@@ -157,7 +157,7 @@ async def evaluate_agent_against_suite(
     The judge now evaluates the agent output independently against each criterion.
     """
 
-    judge_agent, judge_formatter_agent = _get_judge_agents()
+    # Cached judge agents are not used for per-criterion evaluation to avoid any hidden state carryover.
 
     use_structured_output = (
         agent_spec.definition.agent_type == AgentType.STRUCTURED_OUTPUT
@@ -276,6 +276,7 @@ async def evaluate_agent_against_suite(
         per_criterion_results: List[EvaluationResult] = []
 
         for crit_index, single_criterion in enumerate(criteria_list, start=1):
+            judge_agent, judge_formatter_agent = _build_fresh_judge_agents()
             judge_prompt = f"""The current date is June 2025.
 
 Please evaluate the following agent output for logical correctness.
@@ -537,6 +538,49 @@ You may use <think> tags to reason about the query before producing your final o
     )
 
     return _judge_agent, _judge_formatter_agent
+
+
+def _build_fresh_judge_agents() -> Tuple[Agent, Agent]:
+    """Construct fresh judge and formatter agents to ensure independence per criterion."""
+    judge_instructions = """
+You are a meticulous and impartial AI evaluator. Your task is to assess the output of another AI agent based on a given set of criteria.
+
+You will be provided with:
+1.  The `agent_output` that the agent produced.
+2.  The `evaluation_criteria` that you must strictly follow to determine if the test passes or fails.
+3.  The `test_case` details for context.
+
+CRITICAL RULE: Your decision about whether the test passes or fails MUST be based *exclusively* on the `evaluation_criteria`. The `test_case` (including the original `prompt`) is provided for context only. Do NOT infer the agent's expected behavior from the `prompt`; use only the `evaluation_criteria`.
+
+Your process is to:
+1.  **Understand the Goal**: Read the `evaluation_criteria` carefully to understand what constitutes a "pass".
+2.  **Analyze the Output**: Scrutinize the `agent_output` and compare it against the rules in the `evaluation_criteria`.
+3.  **Make a Decision**: Based *only* on the `evaluation_criteria`, decide if the `agent_output` passes the test.
+4.  **Formulate Reasoning**: In the `reasoning` field, explain *why* the test passed or failed by referencing the specific rule(s) from the `evaluation_criteria` that were met or not met.
+5.  **Set Final Verdict**: Set the `passed` field to `true` if the test passed, and `false` if it failed.
+
+You may use <think> tags to reason about the query before producing your final output. Your final output must be a single, valid JSON object with 'passed' (boolean) and 'reasoning' (string) fields.
+"""
+    judge = Agent(
+        name="EvaluationJudgeAgent",
+        instructions=judge_instructions,
+        model=OpenAIChatCompletionsModel(model=_QWEN_MODEL_NAME, openai_client=_client),
+        model_settings=_QWEN_MODEL_SETTINGS,
+    )
+
+    formatter = Agent(
+        name="EvaluationJudgeFormatterAgent",
+        instructions=(
+            "You are a formatter agent. Your task is to convert the user's input text into a valid JSON "
+            "object conforming to the EvaluationResult schema. The schema requires a 'passed' field (boolean) "
+            "and a 'reasoning' field (string). Your output MUST be ONLY the JSON object."
+        ),
+        model=OpenAIChatCompletionsModel(model=_QWEN_MODEL_NAME, openai_client=_client),
+        model_settings=_QWEN_MODEL_SETTINGS,
+        output_type=EvaluationResult,
+    )
+
+    return judge, formatter
 
 
 # --- Public entrypoint ------------------------------------------------------
