@@ -41,13 +41,9 @@ question_generator_test_suite = [
     },
 ]
 
-question_generator_criteria = """
-**1. JSON Structure**: The output must be a valid JSON object with exactly one key 'questions' containing a list of strings.
-**2. Question Count**: The 'questions' list must contain exactly 3 questions.
-**3. Question Quality**: Each question must be:
-   - Relevant to the research topic provided in the prompt
-   - Clear and specific enough to guide focused research
-   - Different from each other to ensure comprehensive coverage
-   - Phrased as answerable research questions that would help gather information about the topic
-**4. No Extra Fields**: The JSON output should contain only the 'questions' field, no other fields like 'state_name' or metadata.
-"""
+question_generator_criteria = [
+    "The output is a valid JSON object with exactly one key 'questions' containing a list of strings.",
+    "The 'questions' list contains exactly 3 questions.",
+    "Each question is relevant to the research topic, clear and specific, different from the others, and phrased as an answerable research question.",
+    "No extra fields are present beyond 'questions'.",
+]

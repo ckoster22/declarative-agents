@@ -31,15 +31,11 @@ simple_greeting_test_suite = [
     },
 ]
 
-simple_greeting_criteria = """
-**1. Name Inclusion**: The greeting must include the exact name provided in the prompt.
-**2. Tone Appropriateness**: 
-    - Formal titles (Dr., Mr., Ms., Professor) should receive formal greetings
-    - First names should receive informal, friendly greetings
-**3. Length**: Greeting should be 1-2 sentences (not too short, not too long).
-**4. Friendliness**: Greeting should be welcoming and positive.
-**5. No Extra Content**: Should not include explanations, markdown, or extra text beyond the greeting.
-**6. Keyword Presence**: Must contain expected keywords based on the test case.
-
-If **any** rule above is violated, the test fails.
-""" 
+simple_greeting_criteria = [
+    "The greeting includes the exact name provided in the prompt.",
+    "Tone appropriateness: formal titles (Dr., Mr., Ms., Professor) receive formal greetings; first names receive informal, friendly greetings.",
+    "Length: the greeting is 1–2 sentences.",
+    "Friendliness: the greeting is welcoming and positive.",
+    "No extra content: no explanations, markdown, or any text beyond the greeting.",
+    "Keyword presence: contains expected keywords based on the test case.",
+] 

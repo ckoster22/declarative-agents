@@ -48,6 +48,6 @@ topic_assessor_test_suite = [
     },
 ]
 
-topic_assessor_criteria = """
-**Assessment Accuracy**: The 'assessment' field in the JSON output must exactly match the `expected_assessment` from the test case details.
-"""
+topic_assessor_criteria = [
+    "The 'assessment' field in the JSON output exactly matches the 'expected_assessment' from the test case details.",
+]

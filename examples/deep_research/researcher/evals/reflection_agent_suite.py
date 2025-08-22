@@ -249,23 +249,10 @@ Max iterations: 2""",
     },
 ]
 
-reflection_agent_criteria = """
-**1. JSON Structure**: The output must be a valid JSON object with exactly two fields: 'additional_questions' (list) and 'reasoning' (string). No other fields like 'state_name' should be present.
-
-**2. Additional Questions Logic**: The reflection agent must correctly determine when to continue or stop research:
-   - If the research should continue, the 'additional_questions' list must contain between 1 and 3 non-empty research questions.
-   - If the research should stop, the 'additional_questions' list must be empty.
-   - Expected behavior is indicated by the 'expected_additional_questions_empty' field in each test case.
-
-**3. Question Quality**: When 'additional_questions' is non-empty, the questions must be:
-   - Specific and focused research questions that address knowledge gaps
-   - Different from existing questions that were already researched
-   - Relevant to exploring deeper aspects of the research topic
-
-**4. Reasoning Quality**: The 'reasoning' field must be a non-empty string that logically justifies the decision, considering factors like:
-   - Current iteration vs max iterations
-   - Scope and complexity of the research topic
-   - Adequacy of gathered knowledge relative to the topic's requirements
-   - Identification of specific knowledge gaps
-
-**5. Complex Topic Assessment**: For complex, multi-faceted topics like "the first six months of a worldwide pandemic" with minimal research completed (current_iteration much less than max_iterations), the agent should recognize that more research is needed and generate additional questions unless max_iterations is reached."""
+reflection_agent_criteria = [
+    "The output is a valid JSON object with exactly two fields: 'additional_questions' (list) and 'reasoning' (string); no other fields are present.",
+    "Decision logic: If research should continue, 'additional_questions' contains 1 to 3 non-empty research questions; if research should stop, 'additional_questions' is empty, aligned with 'expected_additional_questions_empty' in the test case.",
+    "When present, 'additional_questions' are specific, address knowledge gaps, differ from existing researched questions, and are relevant to deeper exploration of the topic.",
+    "'reasoning' is a non-empty string that logically justifies the decision, considering current vs max iterations, topic complexity, adequacy of gathered knowledge, and identified knowledge gaps.",
+    "For complex, multi-faceted topics with minimal research completed (current_iteration much less than max_iterations), the agent recognizes that more research is needed and generates additional questions unless max_iterations is reached.",
+]

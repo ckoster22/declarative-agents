@@ -476,8 +476,8 @@ def _load_eval_module(yaml_path: str) -> ModuleType:
 def _extract_suite_and_criteria(module: ModuleType) -> Tuple[List[Dict[str, Any]], Any]:
     """Extract the test suite list and criteria object from the module via naming convention.
 
-    The criteria may be a str, list/tuple of strings, or a dict with
-    optional 'preamble', 'criteria' (list/str), and 'closing'.
+    The criteria must be a list/tuple of strings, or a dict with
+    optional 'preamble' (str), 'criteria' (list/str), and 'closing' (str).
     """
 
     test_suite: Optional[List[Dict[str, Any]]] = None
@@ -486,13 +486,13 @@ def _extract_suite_and_criteria(module: ModuleType) -> Tuple[List[Dict[str, Any]
     for attr_name, attr_val in vars(module).items():
         if attr_name.endswith("_test_suite") and isinstance(attr_val, list):
             test_suite = attr_val
-        elif attr_name.endswith("_criteria") and isinstance(attr_val, (str, list, tuple, dict)):
+        elif attr_name.endswith("_criteria") and isinstance(attr_val, (list, tuple, dict)):
             criteria = attr_val
 
     if test_suite is None or criteria is None:
         raise AttributeError(
             "Evaluation module must define variables ending with `_test_suite` (list) "
-            "and `_criteria` (str | list | dict)."
+            "and `_criteria` (list | tuple | dict)."
         )
 
     return test_suite, criteria
