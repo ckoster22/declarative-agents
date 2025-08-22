@@ -13,12 +13,35 @@ and diagnostics fields.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from uuid import uuid4
 
 
-_SANDBOX_IMAGE = "python:3.11-alpine"
+# Allow operators to override the sandbox image (e.g., pin to a digest) at deploy time
+_DEFAULT_SANDBOX_IMAGE = "python:3.11-alpine"
+_SANDBOX_IMAGE = os.environ.get("PY_SANDBOX_IMAGE", _DEFAULT_SANDBOX_IMAGE)
+
+# Hard limits to minimize abuse and resource exhaustion
+_MAX_CODE_BYTES = 64 * 1024  # Max size of code accepted from caller
+_MAX_STDIO_BYTES = 64 * 1024  # Max captured bytes for both stdout and stderr
+
+# Parameter guardrails
+_MIN_TIMEOUT_SECONDS = 1
+_MAX_TIMEOUT_SECONDS = 10
+_MIN_MEMORY_MB = 32
+_MAX_MEMORY_MB = 1024
+_MIN_CPU_LIMIT = 0.1
+_MAX_CPU_LIMIT = 2.0
+
+
+def _clamp(value: float, lo: float, hi: float) -> float:
+    if value < lo:
+        return lo
+    if value > hi:
+        return hi
+    return value
 
 
 def run_python_sandboxed(
@@ -40,6 +63,7 @@ def run_python_sandboxed(
         A JSON string with keys: stdout, stderr, exit_code, timed_out, diagnostics.
     """
 
+    # Fast-fail if the container runtime is not available
     if shutil.which("docker") is None:
         return json.dumps(
             {
@@ -53,13 +77,35 @@ def run_python_sandboxed(
             }
         )
 
+    # Enforce maximum code size to avoid host-side memory abuse
+    code_bytes = code.encode("utf-8", errors="replace")
+    if len(code_bytes) > _MAX_CODE_BYTES:
+        return json.dumps(
+            {
+                "stdout": "",
+                "stderr": "Code too large for sandbox",
+                "exit_code": 413,
+                "timed_out": False,
+                "diagnostics": {
+                    "max_code_bytes": _MAX_CODE_BYTES,
+                },
+            }
+        )
+
+    # Clamp resource parameters to conservative bounds
+    safe_timeout = int(_clamp(int(timeout_seconds), _MIN_TIMEOUT_SECONDS, _MAX_TIMEOUT_SECONDS))
+    safe_memory_mb = int(_clamp(int(memory_mb), _MIN_MEMORY_MB, _MAX_MEMORY_MB))
+    safe_cpu_limit = float(_clamp(float(cpu_limit), _MIN_CPU_LIMIT, _MAX_CPU_LIMIT))
+
     container_name = f"py-sandbox-{uuid4().hex}"
 
+    # Build a locked-down container invocation
     cmd = [
         "docker",
         "run",
         "--pull=never",
         "--log-driver=none",
+        "--no-healthcheck",
         "--rm",
         "--name",
         container_name,
@@ -71,14 +117,14 @@ def run_python_sandboxed(
         "--pids-limit",
         "100",
         "--memory",
-        f"{memory_mb}m",
+        f"{safe_memory_mb}m",
         "--memory-swap",
-        f"{memory_mb}m",
+        f"{safe_memory_mb}m",
         "--cpus",
-        str(cpu_limit),
+        str(safe_cpu_limit),
         "--read-only",
         "--tmpfs",
-        "/tmp:rw,size=64m",
+        f"/tmp:rw,noexec,nosuid,nodev,size=64m",
         "-w",
         "/tmp",
         "--security-opt",
@@ -96,20 +142,22 @@ def run_python_sandboxed(
         "-e",
         "PYTHONUNBUFFERED=1",
         "-e",
+        "PYTHONNOUSERSITE=1",
+        "-e",
         "HOME=/tmp",
         _SANDBOX_IMAGE,
         "/bin/sh",
         "-lc",
-        # Limit combined stdout/stderr to 64KiB each to avoid unbounded host-side capture
-        "cat >/tmp/main.py && python3 /tmp/main.py > /tmp/_o 2> /tmp/_e; head -c 65536 /tmp/_o; head -c 65536 /tmp/_e 1>&2",
+        # Limit combined stdout/stderr to 64KiB each and keep file perms tight
+        f"umask 077; cat >/tmp/main.py && python3 -I -B -S /tmp/main.py > /tmp/_o 2> /tmp/_e; head -c {_MAX_STDIO_BYTES} /tmp/_o; head -c {_MAX_STDIO_BYTES} /tmp/_e 1>&2",
     ]
 
     try:
         proc = subprocess.run(
             cmd,
-            input=code.encode("utf-8"),
+            input=code_bytes,
             capture_output=True,
-            timeout=timeout_seconds,
+            timeout=safe_timeout,
         )
         return json.dumps(
             {
@@ -118,21 +166,17 @@ def run_python_sandboxed(
                 "exit_code": int(proc.returncode),
                 "timed_out": False,
                 "diagnostics": {
-                    "cpu_limit": cpu_limit,
-                    "memory_mb": memory_mb,
-                    "timeout_seconds": timeout_seconds,
+                    "cpu_limit": safe_cpu_limit,
+                    "memory_mb": safe_memory_mb,
+                    "timeout_seconds": safe_timeout,
                 },
             }
         )
     except subprocess.TimeoutExpired as e:
         # Best-effort cleanup; ignore return status
         subprocess.run(["docker", "rm", "-f", container_name], capture_output=True)
-        stdout_text = (
-            e.stdout.decode("utf-8", errors="replace") if e.stdout else ""
-        )
-        stderr_text = (
-            e.stderr.decode("utf-8", errors="replace") if e.stderr else ""
-        )
+        stdout_text = e.stdout.decode("utf-8", errors="replace") if e.stdout else ""
+        stderr_text = e.stderr.decode("utf-8", errors="replace") if e.stderr else ""
         return json.dumps(
             {
                 "stdout": stdout_text,
@@ -140,11 +184,29 @@ def run_python_sandboxed(
                 "exit_code": 124,
                 "timed_out": True,
                 "diagnostics": {
-                    "cpu_limit": cpu_limit,
-                    "memory_mb": memory_mb,
-                    "timeout_seconds": timeout_seconds,
+                    "cpu_limit": safe_cpu_limit,
+                    "memory_mb": safe_memory_mb,
+                    "timeout_seconds": safe_timeout,
                 },
             }
         )
-
+    except Exception:
+        # Best-effort cleanup; avoid surfacing internal details
+        try:
+            subprocess.run(["docker", "rm", "-f", container_name], capture_output=True)
+        except Exception:
+            pass
+        return json.dumps(
+            {
+                "stdout": "",
+                "stderr": "Sandbox execution failed",
+                "exit_code": 1,
+                "timed_out": False,
+                "diagnostics": {
+                    "cpu_limit": safe_cpu_limit,
+                    "memory_mb": safe_memory_mb,
+                    "timeout_seconds": safe_timeout,
+                },
+            }
+        )
 
