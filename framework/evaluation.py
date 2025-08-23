@@ -27,7 +27,6 @@ from framework.types import AgentType
 from framework.utils import ThinkTagFilter
 from config import get_external_client
 from agents import trace
-from agents.tracing import custom_span
 
 
 def _extract_text_delta_from_event(event: object) -> Optional[str]:
@@ -277,12 +276,9 @@ async def evaluate_agent_against_suite(
 
         per_criterion_results: List[EvaluationResult] = []
 
-        # Group all judge-related traces for this case under one parent trace
-        with trace(f"AI Judge Evaluation — {target_agent_name} — {test_id}"):
-            for crit_index, single_criterion in enumerate(criteria_list, start=1):
-                with custom_span(f"Criterion {crit_index} Evaluation"):
-                    judge_agent, judge_formatter_agent = _build_fresh_judge_agents()
-                    judge_prompt = f"""The current date is June 2025.
+        for crit_index, single_criterion in enumerate(criteria_list, start=1):
+            judge_agent, judge_formatter_agent = _build_fresh_judge_agents()
+            judge_prompt = f"""The current date is June 2025.
 
 Please evaluate the following agent output for logical correctness.
 The output has already been validated as parsable. You only need to check the content against the single evaluation criterion below.
@@ -594,15 +590,16 @@ You may use <think> tags to reason about the query before producing your final o
 async def run_evaluation_from_yaml(yaml_path: str) -> None:
     """Discover and execute the evaluation associated with a YAML agent spec."""
 
-    # 1. Load the agent specification (we need the full spec now)
-    agent_spec = AgentLoader.load_from_file(yaml_path)
+    with trace(f"AI Judge Evaluation Suite — {yaml_path}"):
+        # 1. Load the agent specification (we need the full spec now)
+        agent_spec = AgentLoader.load_from_file(yaml_path)
 
-    # 2. Locate evaluation suite
-    eval_module = _load_eval_module(yaml_path)
-    test_suite, evaluation_criteria = _extract_suite_and_criteria(eval_module)
+        # 2. Locate evaluation suite
+        eval_module = _load_eval_module(yaml_path)
+        test_suite, evaluation_criteria = _extract_suite_and_criteria(eval_module)
 
-    # 3. Execute evaluation using the spec (handles structured agents)
-    await evaluate_agent_against_suite(agent_spec, test_suite, evaluation_criteria)
+        # 3. Execute evaluation using the spec (handles structured agents)
+        await evaluate_agent_against_suite(agent_spec, test_suite, evaluation_criteria)
 
 
 # Handy synchronous wrapper (for potential future CLI integration)
