@@ -45,38 +45,14 @@ outline_critiquer_test_suite = [
     },
 ]
 
-outline_critiquer_criteria = """
-**1. JSON Structure**: The output must be a valid JSON object with exactly two keys: 'state_name' and 'revised_outline'.
-
-**2. State Name**: The 'state_name' field must be exactly "ready_for_expansion".
-
-**3. Section Count**: The 'revised_outline' list must contain between 3 and 8 sections.
-
-**4. Improvement Over Initial**: The revised outline must show clear improvement over the initial outline:
-   - Eliminate redundancy (merge similar sections)
-   - Fix unclear or vague section titles
-   - Add missing sections that are important for the topic
-   - Improve logical flow and structure
-
-**5. User Requirement Adherence**: If the user has specified structural requirements (e.g., "three-section report"), the revised outline MUST honor those requirements exactly.
-
-**6. Comprehensive Coverage**: The outline must adequately address all major themes present in the gathered knowledge:
-   - No significant aspects from the research should be missing
-   - All main findings should be addressable within the outline structure
-
-**7. Logical Flow**: The revised outline must demonstrate clear logical progression:
-   - Sections should build upon each other
-   - Introduction → main content → conclusion structure when appropriate
-   - No illogical ordering of sections
-
-**8. Professional Quality**: Section titles must be:
-   - Clear and descriptive
-   - Professional and appropriate for academic/business reports
-   - Specific enough to guide content development
-   - Free of redundancy or overlap
-
-**9. Handling Edge Cases**: The agent must handle special cases appropriately:
-   - Empty initial outlines should result in a complete new outline
-   - Severely flawed outlines should be substantially restructured
-   - Good outlines should receive minor improvements or be kept largely intact
-"""
+outline_critiquer_criteria = [
+    "The output is a valid JSON object with exactly two keys: 'state_name' and 'revised_outline'.",
+    "The 'state_name' field is exactly 'ready_for_expansion'.",
+    "The 'revised_outline' list contains between 3 and 8 sections.",
+    "The revised outline shows clear improvement over the initial outline by eliminating redundancy, fixing unclear or vague titles, adding missing important sections, and improving logical flow and structure.",
+    "If the user specifies structural requirements (e.g., 'three-section report'), the revised outline honors those requirements exactly.",
+    "The outline adequately addresses major themes present in the gathered knowledge with no significant omissions and all main findings addressable within the structure.",
+    "The revised outline demonstrates clear logical progression (sections build upon each other; appropriate introduction → main content → conclusion ordering; no illogical ordering).",
+    "Section titles are clear, descriptive, professional, specific, and free of redundancy or overlap.",
+    "Edge cases are handled appropriately: empty initial outlines yield a complete new outline; severely flawed outlines are substantially restructured; good outlines receive minor improvements or are kept largely intact.",
+]

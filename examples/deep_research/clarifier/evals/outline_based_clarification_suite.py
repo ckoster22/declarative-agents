@@ -84,13 +84,10 @@ These developments reflect Nebraska's commitment to fiscal responsibility and ec
     },
 ]
 
-outline_based_clarification_criteria = """
-**1. Question Count**: The 'questions' list in the JSON output must contain between 1 and 4 questions.
-**2. Relevance, Clarity, and Form**:
-    a. For each question:
-        i. It must be relevant to the prompt and clearly phrased. A question is relevant if it addresses an aspect of the prompt that could benefit from clarification to narrow the research scope.
-        ii. It must be a CLARIFYING question. As a practical heuristic, a valid clarifying question is typically closed-ended and begins with phrases like "Are you…", "Do you…", "Would you…", "Which of these…", "Should the focus be…", etc.
-        iii. Wh-questions that begin with "What", "How", "Why", "When", "Where" are generally research questions and must be rejected. However, wh-questions are acceptable ONLY when they clearly ask for user preferences or choices (e.g., "What level of detail do you want?", "Which specific aspects interest you most?", "How technical should the explanation be?").
-        iv. Questions must be useful for narrowing research scope and avoid redundancy across multiple questions.
-    b. If **any** question fails 2.a.ii, 2.a.iii, or 2.a.iv then the entire test fails.
-"""
+outline_based_clarification_criteria = [
+    "The 'questions' list in the JSON output contains between 1 and 4 questions.",
+    "For each question: it is relevant to the prompt and clearly phrased.",
+    "For each question: it is a clarifying question (typically closed-ended; begins with phrases like 'Are you', 'Do you', 'Would you', 'Which of these', 'Should the focus be').",
+    "Wh-questions ('What', 'How', 'Why', 'When', 'Where') are not allowed unless they clearly ask for user preferences or choices (e.g., 'What level of detail do you want?', 'Which specific aspects interest you most?', 'How technical should the explanation be?').",
+    "Questions are useful for narrowing research scope and avoid redundancy across multiple questions.",
+]

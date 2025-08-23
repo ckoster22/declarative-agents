@@ -167,16 +167,13 @@ self_critique_query_reviser_test_suite = [
     },
 ]
 
-self_critique_query_reviser_criteria = """
-**1. Structure**: The agent output must be a JSON object containing **exactly** three keys: `initial_draft_query`, `critique`, and `final_revised_query`.
-**2. Non-empty Strings**: Each of these three fields must be a non-empty string.
-**3. Draft vs Final**: Ordinarily, `final_revised_query` **should differ** from `initial_draft_query`, reflecting improvements raised in the `critique`.  
-    • *Exception*: If the two are identical, the `critique` should provide some justification as to why no change was necessary.
-**4. Faithfulness to User Intent**: The `final_revised_query` must accurately capture the **substantive intent** expressed in BOTH the `original_topic` and the `user_clarification_answer`. It should incorporate all meaningful constraints (scope, time frame, demographic, tone, structure, etc.) without adding or omitting material information.
-**5. Avoiding Bias from Questions**: The `final_revised_query` should not be unduly influenced by wording or suggestions in `clarifying_questions_asked` that were **not** accepted or acknowledged by the user. Introducing new angles the user did not endorse causes failure.
-**6. Respecting Unanswered Questions**: A clarifying question that the **user chose not to answer** should leave **no trace** in the `final_revised_query`. Lack of an answer does **not** license the agent to invent content *or* to forcibly exclude a topic; simply omit that dimension unless it is implicitly covered by the user's clarification.
-**7. Clarity & Conciseness**: The query must be clear, unambiguous, and concise (single sentence is ideal). Excessive verbosity, redundant qualifiers, or unclear phrasing fails the test.
-**8. Completeness**: The query must integrate all *salient* details from the `user_clarification_answer` so that it is ready for research without needing further clarification.
-
-If **any** rule above is violated, the test fails.
-"""
+self_critique_query_reviser_criteria = [
+    "The agent output is a JSON object containing exactly three keys: 'initial_draft_query', 'critique', and 'final_revised_query'.",
+    "Each of 'initial_draft_query', 'critique', and 'final_revised_query' is a non-empty string.",
+    "Ordinarily, 'final_revised_query' differs from 'initial_draft_query', reflecting improvements raised in the critique; if identical, the critique justifies why no change was necessary.",
+    "The 'final_revised_query' accurately captures the substantive intent expressed in BOTH 'original_topic' and 'user_clarification_answer', incorporating all meaningful constraints without adding or omitting material information.",
+    "The 'final_revised_query' is not unduly influenced by wording or suggestions in 'clarifying_questions_asked' that were not accepted or acknowledged by the user.",
+    "Unanswered clarifying questions leave no trace in the 'final_revised_query'.",
+    "The 'final_revised_query' is clear, unambiguous, and concise (ideally a single sentence).",
+    "The 'final_revised_query' integrates all salient details from 'user_clarification_answer' so it is ready for research without further clarification.",
+]

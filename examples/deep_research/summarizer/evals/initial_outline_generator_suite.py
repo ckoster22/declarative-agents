@@ -41,29 +41,12 @@ initial_outline_generator_test_suite = [
     },
 ]
 
-initial_outline_generator_criteria = """
-**1. JSON Structure**: The output must be a valid JSON object with exactly two keys: 'state_name' and 'outline'.
-
-**2. State Name**: The 'state_name' field must be exactly "ready_for_critique".
-
-**3. Outline Count**: The 'outline' list must contain between 3 and 8 sections.
-
-**4. Section Quality**: Each section must be:
-   - A clear, descriptive title that relates to the research topic
-   - Specific enough to guide content development
-   - Different from other sections (no redundancy)
-   - Appropriate for a comprehensive research report
-
-**5. Logical Structure**: The outline must demonstrate logical flow:
-   - Should typically start with an introduction or background section
-   - Include substantive sections covering main findings/themes
-   - Should typically end with a conclusion or summary section
-   - Sections should build upon each other logically
-
-**6. Comprehensiveness**: The outline must adequately cover the research topic:
-   - Address the main aspects mentioned in the gathered knowledge
-   - Provide sufficient breadth to cover the topic comprehensively
-   - Not miss obvious major themes from the research data
-
-**7. Professionalism**: Section titles must be professional and appropriate for an academic or business report format.
-"""
+initial_outline_generator_criteria = [
+    "The output is a valid JSON object with exactly two keys: 'state_name' and 'outline'.",
+    "The 'state_name' field is exactly 'ready_for_critique'.",
+    "The 'outline' list contains between 3 and 8 sections.",
+    "Each section title is clear, descriptive, specific enough to guide content development, different from other sections, and appropriate for a comprehensive report.",
+    "The outline demonstrates logical flow (typically introduction → substantive sections → conclusion) with sections that build upon each other logically.",
+    "The outline adequately covers the research topic, addresses main aspects from the gathered knowledge, provides sufficient breadth, and does not miss obvious major themes.",
+    "Section titles are professional and appropriate for an academic or business report format.",
+]
