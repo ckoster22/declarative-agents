@@ -26,6 +26,8 @@ from framework.declarative_agents import (
 from framework.types import AgentType
 from framework.utils import ThinkTagFilter
 from config import get_external_client
+from agents import trace
+from agents.tracing import custom_span
 
 
 def _extract_text_delta_from_event(event: object) -> Optional[str]:
@@ -275,9 +277,12 @@ async def evaluate_agent_against_suite(
 
         per_criterion_results: List[EvaluationResult] = []
 
-        for crit_index, single_criterion in enumerate(criteria_list, start=1):
-            judge_agent, judge_formatter_agent = _build_fresh_judge_agents()
-            judge_prompt = f"""The current date is June 2025.
+        # Group all judge-related traces for this case under one parent trace
+        with trace(f"AI Judge Evaluation — {target_agent_name} — {test_id}"):
+            for crit_index, single_criterion in enumerate(criteria_list, start=1):
+                with custom_span(f"Criterion {crit_index} Evaluation"):
+                    judge_agent, judge_formatter_agent = _build_fresh_judge_agents()
+                    judge_prompt = f"""The current date is June 2025.
 
 Please evaluate the following agent output for logical correctness.
 The output has already been validated as parsable. You only need to check the content against the single evaluation criterion below.
