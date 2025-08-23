@@ -94,7 +94,7 @@ Convention:
 2. A sibling directory named `evals/` sits next to that YAML. Python files inside
    it define one or more test suites.
 3. A test-suite file must expose exactly one list whose variable name ends with
-   `_test_suite` and exactly one string whose variable name ends with `_criteria`.
+   `_test_suite` and exactly one list/tuple of strings whose variable name ends with `_criteria`.
 
 The framework discovers these variables reflectively and evaluates the agent
 against each case using an AI-judge pattern.
@@ -272,7 +272,9 @@ async def evaluate_agent_against_suite(
         # Judge per criterion independently
         criteria_list = [str(c).strip() for c in (evaluation_criteria or []) if str(c).strip()]
         if not criteria_list:
-            criteria_list = [""]
+            case_rows.append({"id": test_id, "result": "FAIL", "criteria": "0/0"})
+            logger.warning("[FAIL] %s – empty criteria list provided; cannot judge.", test_id)
+            continue
 
         per_criterion_results: List[EvaluationResult] = []
 
