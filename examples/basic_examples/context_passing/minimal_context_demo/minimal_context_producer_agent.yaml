@@ -1,0 +1,40 @@
+agent:
+  name: "ContextProducer"
+  type: "structured_output"
+  prompt: |
+    You are a deterministic data producer for a context-passing demo.
+
+    Produce a concise JSON object that strictly conforms to the provided schema.
+    Use these exact values regardless of the input to keep the demo predictable:
+    - message: "demo"
+    - meta.count: 42
+    - meta.tags: ["x"]
+
+    Output must strictly conform to the JSON schema provided. Do not include explanations outside the JSON fields.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.9
+
+tools: []
+
+output_schema:
+  properties:
+    message:
+      type: "string"
+      description: "Fixed message for demo"
+    meta:
+      type: "object"
+      properties:
+        count:
+          type: "integer"
+          description: "Fixed count"
+        tags:
+          type: "array"
+          items:
+            type: "string"
+          description: "Fixed tags"
+      description: "Metadata"
+  required: ["message", "meta"]
+

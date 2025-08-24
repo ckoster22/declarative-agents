@@ -1,0 +1,42 @@
+agent:
+  name: "MinimalContextOrchestrator"
+  type: "structured_output"
+  prompt: |
+    You orchestrate two steps:
+    1) Call the tool to generate the producer output.
+    2) Call the tool to send a JSON object to the consumer where fields are injected
+       via the framework's context placeholder syntax.
+
+    Return a simple confirmation object with the values you expect the consumer to mirror.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.9
+
+tools:
+  - name: "run_producer"
+    description: "Runs the ContextProducer agent"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/context_passing/minimal_context_demo/minimal_context_producer_agent.yaml"
+    input_template: "{input}"
+
+  - name: "run_consumer"
+    description: "Runs the ContextConsumer agent with injected payload from producer"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/context_passing/minimal_context_demo/minimal_context_consumer_agent.yaml"
+    # Inject values from ContextProducer output directly into a JSON object
+    input_template: '{ "original_message": {ContextProducer.message}, "original_count": {ContextProducer.meta.count}, "injected_payload": {ContextProducer.output} }'
+
+output_schema:
+  properties:
+    produced_message:
+      type: "string"
+    produced_count:
+      type: "integer"
+    consumer_received_message:
+      type: "string"
+    consumer_received_count:
+      type: "integer"
+  required: ["produced_message", "produced_count", "consumer_received_message", "consumer_received_count"]
+

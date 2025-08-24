@@ -53,22 +53,26 @@ tools:
     description: "Generates an initial outline for the research report based on the clarified topic and research data"
     agent_as_tool: true
     agent_yaml_path: "examples/deep_research/summarizer/initial_outline_generator_agent.yaml"
-    input_template: "{input}"
+    # Inject the clarified topic and full gathered knowledge from previous stages
+    input_template: '{ "research_topic": {ClarifierOrchestratorAgent.final_revised_query}, "gathered_knowledge": {ResearcherOrchestratorAgent.gathered_knowledge} }'
   
   - name: "critique_outline_tool"
     description: "Critiques and revises the initial outline to improve structure and coherence"
     agent_as_tool: true
     agent_yaml_path: "examples/deep_research/summarizer/outline_critiquer_agent.yaml"
-    input_template: "{input}"
+    # Inject topic, the generated outline, and all gathered knowledge
+    input_template: '{ "research_topic": {ClarifierOrchestratorAgent.final_revised_query}, "initial_outline": {InitialOutlineGeneratorAgent.outline}, "gathered_knowledge": {ResearcherOrchestratorAgent.gathered_knowledge} }'
   
   - name: "expand_section_tool"
     description: "Expands a single section of the outline into detailed markdown content"
     agent_as_tool: true
     agent_yaml_path: "examples/deep_research/summarizer/section_expander_agent.yaml"
-    input_template: "{input}"
+    # Provide heavy fields via context; the orchestrator supplies per-call section data in {input}
+    input_template: '{ "research_topic": {ClarifierOrchestratorAgent.final_revised_query}, "gathered_knowledge": {ResearcherOrchestratorAgent.gathered_knowledge}, "section": {input} }'
   
   - name: "finalize_report_tool"
     description: "Combines all sections into the final report and saves it as both markdown and PDF files"
     agent_as_tool: true
     agent_yaml_path: "examples/deep_research/summarizer/finalizer_agent.yaml"
-    input_template: "{input}" 
+    # Inject topic; the orchestrator supplies accumulated expanded sections via {input}
+    input_template: '{ "research_topic": {ClarifierOrchestratorAgent.final_revised_query}, "expanded_sections": {input} }'

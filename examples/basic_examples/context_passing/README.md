@@ -1,4 +1,4 @@
-# Context Passing Example
+# Context Passing Example (with input_template placeholders)
 
 This example demonstrates how agents pass structured data between each other in a workflow.
 
@@ -15,7 +15,7 @@ Shows how to:
 ```
 ContextOrchestratorAgent
 ├── DataCollectorAgent (extracts structured data)
-└── DataAnalyzerAgent (receives and analyzes data)
+└── DataAnalyzerAgent (receives and analyzes data via injected placeholders)
 ```
 
 ## Files
@@ -28,7 +28,7 @@ ContextOrchestratorAgent
 ## Key Concepts Demonstrated
 
 1. **Data Extraction**: Converting unstructured input to structured format
-2. **Context Passing**: Passing complete JSON data between agents
+2. **Context Passing**: Passing complete JSON data between agents using placeholder injection
 3. **Structured Communication**: Using JSON schemas for reliable data transfer
 4. **Workflow Coordination**: Orchestrating multi-step processes
 
@@ -36,7 +36,7 @@ ContextOrchestratorAgent
 
 Run with sample data:
 ```bash
-python -m framework.cli run examples/basic_examples/context_passing/context_orchestrator_agent.yaml "The company reported 15% revenue growth in Q3, with strong performance in the technology sector. Customer satisfaction scores improved to 4.2/5.0, and employee retention rates reached 92%."
+python -m framework.cli examples/basic_examples/context_passing/context_orchestrator_agent.yaml "The company reported 15% revenue growth in Q3, with strong performance in the technology sector. Customer satisfaction scores improved to 4.2/5.0, and employee retention rates reached 92%."
 ```
 
 ## Expected Behavior
@@ -56,7 +56,22 @@ User Input → DataCollector → Structured JSON → DataAnalyzer → Analysis R
 - `agent_as_tool: true` - Agent composition
 - `type: "structured_output"` - Reliable JSON output
 - `output_schema` - Data structure validation
-- `input_template` - Parameter passing
+- `input_template` - Parameter passing and context placeholder injection
+### Placeholder syntax
+
+In `context_orchestrator_agent.yaml`, the analyzer tool demonstrates placeholder injection:
+
+```yaml
+tools:
+  - name: "data_analyzer_tool"
+    agent_as_tool: true
+    agent_yaml_path: "examples/basic_examples/context_passing/data_analyzer_agent.yaml"
+    input_template: '{ "collected": {DataCollectorAgent.output} }'
+```
+
+- `{DataCollectorAgent.output}` injects the entire JSON output of `DataCollectorAgent`.
+- You can inject nested fields: `{DataCollectorAgent.topic}` or `{DataCollectorAgent.key_facts}`.
+- `{input}` still injects the raw string input to the current tool.
 - `enum` - Constrained field values
 - `array` - List data structures
 

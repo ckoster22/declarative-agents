@@ -1,0 +1,44 @@
+agent:
+  name: "ContextConsumer"
+  type: "structured_output"
+  prompt: |
+    You are a deterministic data echoer for a context-passing demo.
+
+    You will receive a JSON blob as your input containing fields that were
+    automatically injected from another agent's output. Map them directly
+    to the schema fields without modification.
+
+    Output must strictly conform to the JSON schema provided. Do not include explanations outside the JSON fields.
+
+model:
+  name: "qwen3-1.7b"
+  temperature: 0.1
+  top_p: 0.9
+
+tools: []
+
+output_schema:
+  properties:
+    original_message:
+      type: "string"
+      description: "Echo of ContextProducer.message"
+    original_count:
+      type: "integer"
+      description: "Echo of ContextProducer.meta.count"
+    injected_payload:
+      type: "object"
+      properties:
+        message:
+          type: "string"
+        meta:
+          type: "object"
+          properties:
+            count:
+              type: "integer"
+            tags:
+              type: "array"
+              items:
+                type: "string"
+      description: "Full payload injected from producer"
+  required: ["original_message", "original_count", "injected_payload"]
+

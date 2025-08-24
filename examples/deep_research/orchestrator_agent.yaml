@@ -28,9 +28,11 @@ tools:
     description: "Conducts comprehensive research on the clarified topic"
     agent_as_tool: true
     agent_yaml_path: "examples/deep_research/researcher/researcher_orchestrator_agent.yaml"
-    input_template: "{input}"
+    # Automatically pass the final revised query from the clarifier as the research topic
+    input_template: '{ClarifierOrchestratorAgent.final_revised_query}'
   - name: "summarizer_orchestrator_tool"
     description: "Creates a comprehensive research report from the research findings"
     agent_as_tool: true
     agent_yaml_path: "examples/deep_research/summarizer/summarizer_orchestrator_agent.yaml"
-    input_template: "{input}" 
+    # Inject both the clarified topic and the full gathered knowledge into a JSON payload
+    input_template: '{ "research_topic": {ClarifierOrchestratorAgent.final_revised_query}, "gathered_knowledge": {ResearcherOrchestratorAgent.gathered_knowledge} }'
