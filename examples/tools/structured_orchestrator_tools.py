@@ -4,7 +4,6 @@ Tools for the structured output orchestrator agent to call other structured outp
 
 import json
 
-
 from framework import AgentLoader
 
 
@@ -26,9 +25,7 @@ async def call_structured_description_agent(topic: str) -> str:
     if isinstance(result, dict):
         return json.dumps(result)
     else:
-        return json.dumps(
-            {"error": "Failed to get structured output", "raw_result": str(result)}
-        )
+        return json.dumps({"error": "Failed to get structured output", "raw_result": str(result)})
 
 
 async def call_structured_story_agent(description_json: str) -> str:
@@ -63,9 +60,7 @@ Please create a compelling story that incorporates all these elements."""
         if isinstance(result, dict):
             return json.dumps(result)
         else:
-            return json.dumps(
-                {"error": "Failed to get structured output", "raw_result": str(result)}
-            )
+            return json.dumps({"error": "Failed to get structured output", "raw_result": str(result)})
 
     except json.JSONDecodeError:
         return json.dumps({"error": "Invalid JSON input", "input": description_json})

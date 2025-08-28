@@ -5,7 +5,8 @@ This module handles the creation of Pydantic models from JSON schemas
 and provides utilities for working with structured output.
 """
 
-from typing import Dict, Type, Union, List, Tuple
+from typing import Dict, List, Tuple, Type, Union
+
 from pydantic import BaseModel, Field, create_model
 
 from framework.types import FieldType, OutputSchema
@@ -15,9 +16,7 @@ class ModelFactory:
     """Factory for creating Pydantic models from schemas."""
 
     @staticmethod
-    def create_output_model_from_schema(
-        schema: OutputSchema, model_name: str
-    ) -> Type[BaseModel]:
+    def create_output_model_from_schema(schema: OutputSchema, model_name: str) -> Type[BaseModel]:
         """Create a Pydantic model from an output schema definition.
 
         Supports primitive fields, arrays (including arrays of objects), and
@@ -56,9 +55,7 @@ class ModelFactory:
             else:
                 # If minItems/maxItems are present on non-array fields, that's invalid
                 if "minItems" in field_def or "maxItems" in field_def:
-                    raise ValueError(
-                        f"minItems/maxItems specified on non-array field '{field_name}' in {model_name}"
-                    )
+                    raise ValueError(f"minItems/maxItems specified on non-array field '{field_name}' in {model_name}")
 
             # Required by default; callers can relax later if needed
             fields[field_name] = (field_type, Field(**field_kwargs))
@@ -93,23 +90,17 @@ class ModelFactory:
         if field_type_str == FieldType.ARRAY:
             items_def = field_def.get("items")
             if not isinstance(items_def, dict) or not items_def:
-                raise ValueError(
-                    f"Array field {model_name_prefix} must specify a non-empty 'items' object"
-                )
+                raise ValueError(f"Array field {model_name_prefix} must specify a non-empty 'items' object")
             item_type = ModelFactory._python_type_from_schema(items_def, f"{model_name_prefix}_item")
             return List[item_type]  # type: ignore[valid-type]
         if field_type_str == "object":
             # Build a nested model from properties; require non-empty properties
             props = field_def.get("properties")
             if not isinstance(props, dict) or not props:
-                raise ValueError(
-                    f"Object field {model_name_prefix} must define non-empty 'properties'"
-                )
+                raise ValueError(f"Object field {model_name_prefix} must define non-empty 'properties'")
             nested_fields: Dict[str, Union[Type, Tuple[Type, Field]]] = {}
             for nested_name, nested_def in props.items():
-                nested_type = ModelFactory._python_type_from_schema(
-                    nested_def, f"{model_name_prefix}_{nested_name}"
-                )
+                nested_type = ModelFactory._python_type_from_schema(nested_def, f"{model_name_prefix}_{nested_name}")
                 description = nested_def.get("description", "")
                 nested_fields[nested_name] = (nested_type, Field(description=description))
             nested_model = create_model(model_name_prefix, **nested_fields)  # type: ignore[call-overload]

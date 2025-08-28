@@ -2,31 +2,31 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
-import logging
-from pathlib import Path
-import sys
-from types import ModuleType
 import json
+import logging
 import re
-from typing import Dict, List, Optional, Tuple, Any
+import sys
+from pathlib import Path
+from types import ModuleType
+from typing import Any, Dict, List, Optional, Tuple
 
+from agents import trace
 from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
+from config import get_external_client
 from framework.declarative_agents import (
     Agent,
-    Runner,
-    OpenAIChatCompletionsModel,
-    ModelSettings,
-    AgentSpecification,
     AgentLoader,
+    AgentSpecification,
+    ModelSettings,
+    OpenAIChatCompletionsModel,
+    Runner,
 )
 from framework.types import AgentType
 from framework.utils import ThinkTagFilter
-from config import get_external_client
-from agents import trace
 
 
 def _extract_text_delta_from_event(event: object) -> Optional[str]:
@@ -58,10 +58,7 @@ def _extract_text_delta_from_event(event: object) -> Optional[str]:
             try:
                 obj = json.loads(s)
                 for choice in obj.get("choices", []):
-                    content = (
-                        choice.get("delta", {}).get("content")
-                        or choice.get("message", {}).get("content")
-                    )
+                    content = choice.get("delta", {}).get("content") or choice.get("message", {}).get("content")
                     if isinstance(content, str) and content:
                         return content
             except Exception:
@@ -80,6 +77,7 @@ def _extract_text_delta_from_event(event: object) -> Optional[str]:
             pass
 
     return None
+
 
 """
 Evaluation utilities for the declarative agent framework.
@@ -111,32 +109,24 @@ _EVAL_LOGGING_CONFIGURED: bool = False
 class EvaluationResult(BaseModel):
     """Schema returned by the judge formatter."""
 
-    passed: bool = Field(
-        description="True if the agent's output meets all criteria, False otherwise."
-    )
-    reasoning: str = Field(
-        description="Explanation referencing the specific criteria that were met or failed."
-    )
+    passed: bool = Field(description="True if the agent's output meets all criteria, False otherwise.")
+    reasoning: str = Field(description="Explanation referencing the specific criteria that were met or failed.")
 
 
 # --- Helper functions -------------------------------------------------------
 
-from config import BIG_MODEL, big_model_settings, Model
+from config import BIG_MODEL, Model, big_model_settings
 
 _QWEN_MODEL_NAME: Model = BIG_MODEL
 _QWEN_MODEL_SETTINGS: ModelSettings = big_model_settings
 
 _client = get_external_client()
 if _client is None:
-    logger.warning(
-        "LM Studio client not detected – evaluations that rely on external LLMs will fail"
-    )
+    logger.warning("LM Studio client not detected – evaluations that rely on external LLMs will fail")
 
 # Lazily-constructed global judge agents so we don't spawn them repeatedly
 _judge_agent: Optional[Agent] = None
 _judge_formatter_agent: Optional[Agent] = None
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -160,9 +150,7 @@ async def evaluate_agent_against_suite(
 
     # Cached judge agents are not used for per-criterion evaluation to avoid any hidden state carryover.
 
-    use_structured_output = (
-        agent_spec.definition.agent_type == AgentType.STRUCTURED_OUTPUT
-    )
+    use_structured_output = agent_spec.definition.agent_type == AgentType.STRUCTURED_OUTPUT
 
     # Non-structured agents are materialised once and reused across cases – this
     # mirrors the original implementation.
@@ -342,7 +330,9 @@ Evaluation Criterion:\n```\n{single_criterion}\n```
                     crit_index,
                     formatter_streamed.final_output,
                 )
-                per_criterion_results.append(EvaluationResult(passed=False, reasoning="Formatter could not parse result"))
+                per_criterion_results.append(
+                    EvaluationResult(passed=False, reasoning="Formatter could not parse result")
+                )
             else:
                 per_criterion_results.append(eval_result)
                 level = logging.INFO if eval_result.passed else logging.WARNING
@@ -354,7 +344,9 @@ Evaluation Criterion:\n```\n{single_criterion}\n```
         passed_count = sum(1 for r in per_criterion_results if r.passed)
         total_criteria = len(per_criterion_results)
         failed_indices = [str(i + 1) for i, r in enumerate(per_criterion_results) if not r.passed]
-        criteria_summary = f"{passed_count}/{total_criteria}" + (f" (failed: {', '.join(failed_indices)})" if failed_indices else "")
+        criteria_summary = f"{passed_count}/{total_criteria}" + (
+            f" (failed: {', '.join(failed_indices)})" if failed_indices else ""
+        )
 
         if overall_pass:
             pass_count += 1
@@ -376,9 +368,9 @@ Evaluation Criterion:\n```\n{single_criterion}\n```
         else:
             result_text.stylize("bold red")
         table.add_row(row["id"], result_text, row.get("criteria", ""))
-    
+
     console.print(table)
-    
+
     pass_rate = (pass_count / total_count) * 100 if total_count > 0 else 0
     logger.info(
         "--- Evaluation Summary — Passed: %s / %s (%.2f%%) ---",
@@ -398,9 +390,7 @@ def _load_eval_module(yaml_path: str) -> ModuleType:
     evals_dir = yaml_file.parent / "evals"
 
     if not evals_dir.is_dir():
-        raise FileNotFoundError(
-            f"No `evals/` directory found next to {yaml_file}. Expected at {evals_dir}"
-        )
+        raise FileNotFoundError(f"No `evals/` directory found next to {yaml_file}. Expected at {evals_dir}")
 
     # Pick the first .py file alphabetically
     py_files = sorted(p for p in evals_dir.iterdir() if p.suffix == ".py")

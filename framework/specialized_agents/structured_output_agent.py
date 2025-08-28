@@ -5,14 +5,16 @@ This agent provides a two-step thinking and formatting process that can be
 used declaratively through YAML configuration files.
 """
 
-import logging
 import json
+import logging
 import re
-from typing import TypeVar, Generic, Type, Optional
+from typing import Generic, Optional, Type, TypeVar
+
+from agents import Agent, OpenAIChatCompletionsModel, Runner, RunResult
 from pydantic import BaseModel
-from agents import Agent, Runner, OpenAIChatCompletionsModel, RunResult
-from config import get_external_client, BIG_MODEL, SMALL_MODEL, Model
-from framework.utils import remove_think_tags, ThinkTagFilter
+
+from config import BIG_MODEL, SMALL_MODEL, Model, get_external_client
+from framework.utils import ThinkTagFilter, remove_think_tags
 
 logger = logging.getLogger(__name__)
 
@@ -102,10 +104,7 @@ Your output MUST be ONLY the JSON object, with no other text, explanations, or m
                     obj = json.loads(s)
                     text: str | None = None
                     for choice in obj.get("choices", []):
-                        content = (
-                            choice.get("delta", {}).get("content")
-                            or choice.get("message", {}).get("content")
-                        )
+                        content = choice.get("delta", {}).get("content") or choice.get("message", {}).get("content")
                         if isinstance(content, str) and content:
                             text = (text or "") + content
                     return text
@@ -133,9 +132,7 @@ Your output MUST be ONLY the JSON object, with no other text, explanations, or m
         Raises:
             StructuredOutputAgentError: If the formatter fails to parse the thinker's output
         """
-        logger.info(
-            f"Running StructuredOutputAgent chain for '{self.thinker_agent.name}'..."
-        )
+        logger.info(f"Running StructuredOutputAgent chain for '{self.thinker_agent.name}'...")
 
         # 1. Stream the thinker agent so we can surface think tokens if enabled
         think_filter = ThinkTagFilter()
@@ -165,16 +162,12 @@ Your output MUST be ONLY the JSON object, with no other text, explanations, or m
 
         # Use concatenated chunks as the raw thinker output
         raw_output_text = "".join(raw_chunks)
-        logger.debug(
-            f"Raw output from {self.thinker_agent.name}:\n{raw_output_text}"
-        )
+        logger.debug(f"Raw output from {self.thinker_agent.name}:\n{raw_output_text}")
 
         # Clean the raw output by removing think tags before passing to formatter
         cleaned_output_text = remove_think_tags(raw_output_text)
 
-        logger.debug(
-            f"Cleaned output (think tags removed) from {self.thinker_agent.name}:\n{cleaned_output_text}"
-        )
+        logger.debug(f"Cleaned output (think tags removed) from {self.thinker_agent.name}:\n{cleaned_output_text}")
 
         # 2. Run the internal formatter agent to parse the cleaned output
         # Do not stream formatter; it should not print think tokens and must return clean JSON
@@ -191,9 +184,7 @@ Your output MUST be ONLY the JSON object, with no other text, explanations, or m
                 raw_output=str(formatter_result.final_output),
             )
 
-        logger.info(
-            f"StructuredOutputAgent chain for '{self.thinker_agent.name}' completed successfully."
-        )
+        logger.info(f"StructuredOutputAgent chain for '{self.thinker_agent.name}' completed successfully.")
         return final_output
 
     @classmethod
@@ -231,9 +222,7 @@ Your output MUST be ONLY the JSON object, with no other text, explanations, or m
 
         client = get_external_client()
         if client is None:
-            raise ValueError(
-                "Failed to get LM Studio client. Check if LM Studio server is running."
-            )
+            raise ValueError("Failed to get LM Studio client. Check if LM Studio server is running.")
 
         model_settings = ModelSettings(
             temperature=temperature,

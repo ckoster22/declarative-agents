@@ -1,8 +1,8 @@
 import json
+from datetime import datetime, timezone
 
 # Import the GPT-4o search helper located in the same examples package.
 from .gpt4o_search_tool import GPT4OSearchTool
-from datetime import datetime, timezone
 
 # def get_current_topic_tool():
 #     """Gets the current research topic from context. Returns None if no topic is set."""

@@ -5,65 +5,57 @@ A framework for creating and executing agents from YAML specifications
 with proper volatility-based decomposition.
 """
 
-from typing import List, Callable
-from framework.types import (
-    AgentType,
-    FieldType,
-    CommunicationMode,
-    AgentConfiguration,
-    ToolSpecification,
-    OutputSchema,
-    InputSchema,
-    AgentDefinition,
-)
+from typing import Callable, List
 
+from agents import FunctionTool
+
+from framework.agent_runner import run_agent_as_tool
 from framework.context import (
     AgentContext,
     ContextFormatter,
 )
-
-from framework.models import (
-    ModelFactory,
+from framework.declarative_agents import (
+    AgentLoader,
+    AgentSpecification,
+    run_agent_from_yaml,
 )
-
-from framework.tools import (
-    ToolLoader,
+from framework.file_tools import (
+    append_to_file,
+    get_temp_directory_info,
+    read_file,
 )
-from framework.agent_runner import run_agent_as_tool
-from framework.tool_context import (
-    set_current_context,
-    get_current_context,
-)
-from agents import FunctionTool
-
 from framework.input_sources import (
     InputSourceHandler,
 )
-
-from framework.file_tools import (
-    read_file,
-    append_to_file,
-    get_temp_directory_info,
+from framework.models import (
+    ModelFactory,
 )
-
+from framework.tool_context import (
+    get_current_context,
+    set_current_context,
+)
+from framework.tools import (
+    ToolLoader,
+)
+from framework.types import (
+    AgentConfiguration,
+    AgentDefinition,
+    AgentType,
+    CommunicationMode,
+    FieldType,
+    InputSchema,
+    OutputSchema,
+    ToolSpecification,
+)
 from framework.user_tools import (
-    user_input_tool,
     get_current_datetime_tool,
+    user_input_tool,
 )
-
-from framework.declarative_agents import (
-    AgentSpecification,
-    AgentLoader,
-    run_agent_from_yaml,
-)
-
-
-
 from framework.utils import (
-    remove_think_tags,
+    ThinkTagFilter,
     clean_agent_output,
     is_think_tag_token,
-    ThinkTagFilter,
+    remove_think_tags,
 )
 
 # Legacy compatibility layer
@@ -124,7 +116,6 @@ __all__ = [
     "run_agent_as_tool",
     "set_current_context",
     "get_current_context",
-
     # Input Sources
     "InputSourceHandler",
     # File Tools

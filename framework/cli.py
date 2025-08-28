@@ -7,13 +7,12 @@ from the command line with proper argument parsing and execution.
 
 import argparse
 import asyncio
+
 from framework.declarative_agents import run_agent_from_yaml
 
 
 def create_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Run declarative agents from YAML files"
-    )
+    parser = argparse.ArgumentParser(description="Run declarative agents from YAML files")
     parser.add_argument("yaml_file", help="Path to the YAML file")
     parser.add_argument("input", nargs="?", default="", help="Input text for the agent")
     parser.add_argument(

@@ -38,4 +38,4 @@ simple_greeting_criteria = [
     "Friendliness: the greeting is welcoming and positive.",
     "No extra content: no explanations, markdown, or any text beyond the greeting.",
     "Keyword presence: contains expected keywords based on the test case.",
-] 
+]

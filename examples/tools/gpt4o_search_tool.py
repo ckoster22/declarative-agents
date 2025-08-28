@@ -1,6 +1,7 @@
 import re
+from typing import List, Tuple, TypedDict
+
 from openai import OpenAI
-from typing import Tuple, List, TypedDict
 
 
 class Source(TypedDict):

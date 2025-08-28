@@ -6,7 +6,8 @@ allowing agents to access outputs from previous agents in the chain.
 """
 
 import json
-from typing import Dict, Union, Optional, cast
+from typing import Dict, Optional, Union, cast
+
 from pydantic import BaseModel, Field
 
 from framework.types import InputSchema
@@ -48,9 +49,7 @@ class ContextFormatter:
         return f"Output from {agent_name}: {output}"
 
     @staticmethod
-    def prepare_context_input(
-        context: AgentContext, input_schema: InputSchema, agent_name: str
-    ) -> str:
+    def prepare_context_input(context: AgentContext, input_schema: InputSchema, agent_name: str) -> str:
         """Produce a textual context block for the agent based on the schema."""
         if not context.agent_outputs:
             return ""
