@@ -6,7 +6,7 @@ allowing agents to access outputs from previous agents in the chain.
 """
 
 import json
-from typing import Dict, Union, Optional
+from typing import Dict, Union, Optional, cast
 from pydantic import BaseModel, Field
 
 from framework.types import InputSchema
@@ -21,12 +21,16 @@ class AgentContext(BaseModel):
     agent_outputs: Dict[str, AgentOutput] = Field(default_factory=dict)
 
     def add_output(self, agent_name: str, output: AgentOutput) -> None:
+        """Store an output for the given agent name."""
         self.agent_outputs[agent_name] = output
 
     def get_output(self, agent_name: str) -> Optional[AgentOutput]:
-        return self.agent_outputs.get(agent_name)
+        """Return the stored output for an agent, or None if missing."""
+        outputs = cast(Dict[str, AgentOutput], self.agent_outputs)
+        return outputs[agent_name] if agent_name in outputs else None
 
     def has_output(self, agent_name: str) -> bool:
+        """Check whether there is an output for the given agent name."""
         return agent_name in self.agent_outputs
 
 
@@ -35,18 +39,19 @@ class ContextFormatter:
 
     @staticmethod
     def format_output_for_chat_history(output: AgentOutput, agent_name: str) -> str:
+        """Render a single agent output into a readable chat history entry."""
         if isinstance(output, dict):
             formatted_parts = [f"Output from {agent_name}:"]
             for key, value in output.items():
                 formatted_parts.append(f"  {key}: {value}")
             return "\n".join(formatted_parts)
-        else:
-            return f"Output from {agent_name}: {output}"
+        return f"Output from {agent_name}: {output}"
 
     @staticmethod
     def prepare_context_input(
         context: AgentContext, input_schema: InputSchema, agent_name: str
     ) -> str:
+        """Produce a textual context block for the agent based on the schema."""
         if not context.agent_outputs:
             return ""
 
@@ -62,8 +67,9 @@ class ContextFormatter:
                     else:
                         context_parts.append(str(output))
         else:
-            for agent_name, output in context.agent_outputs.items():
-                context_parts.append(f"\nFrom {agent_name}:")
+            # Avoid shadowing the function argument name
+            for producer_name, output in context.agent_outputs.items():
+                context_parts.append(f"\nFrom {producer_name}:")
                 if isinstance(output, dict):
                     context_parts.append(json.dumps(output, indent=2))
                 else:
