@@ -6,8 +6,9 @@ including file contents and template formatting.
 """
 
 from typing import Optional
-from framework.types import ToolSpecification
+
 from framework.context import AgentContext
+from framework.types import ToolSpecification
 
 
 class InputSourceHandler:
@@ -22,7 +23,5 @@ class InputSourceHandler:
         return InputSourceHandler._get_template_input(tool, base_input, context)
 
     @staticmethod
-    def _get_template_input(
-        tool: ToolSpecification, base_input: str, context: Optional[AgentContext] = None
-    ) -> str:
+    def _get_template_input(tool: ToolSpecification, base_input: str, context: Optional[AgentContext] = None) -> str:
         return tool.input_template.format(input=base_input)

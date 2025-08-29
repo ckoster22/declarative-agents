@@ -1,0 +1,8 @@
+{
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "ms-python.black-formatter",
+	"python.formatting.provider": "none",
+	"isort.args": ["--profile", "black", "--line-length", "120"],
+	"files.trimTrailingWhitespace": true,
+	"files.insertFinalNewline": true
+}

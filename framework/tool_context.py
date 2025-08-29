@@ -12,10 +12,7 @@ from typing import Optional
 
 from framework.context import AgentContext
 
-
-_current_context: ContextVar[Optional[AgentContext]] = ContextVar(
-    "_current_context", default=None
-)
+_current_context: ContextVar[Optional[AgentContext]] = ContextVar("_current_context", default=None)
 
 
 def set_current_context(context: Optional[AgentContext]) -> None:
@@ -26,5 +23,3 @@ def set_current_context(context: Optional[AgentContext]) -> None:
 def get_current_context() -> Optional[AgentContext]:
     """Get the current context for tool execution for this task."""
     return _current_context.get()
-
-

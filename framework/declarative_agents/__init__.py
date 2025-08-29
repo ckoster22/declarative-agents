@@ -5,39 +5,40 @@ This module handles the creation and execution of agents from YAML specification
 including proper streaming and structured output support.
 """
 
+import json
+import re
 from dataclasses import dataclass
-from typing import Dict, Type, Union, Optional, List, TypedDict, Sequence
 from inspect import signature
-import yaml
-from pydantic import BaseModel
-from framework.tool_context import set_current_context
-from framework.tools import ToolLoader
+from typing import Dict, List, Optional, Sequence, Type, TypedDict, Union
 
+import yaml
 
 # __init__.py for declarative_agents package
-from agents import Agent, Runner, OpenAIChatCompletionsModel, ModelSettings, FunctionTool, RunResult
+from agents import Agent, FunctionTool, ModelSettings, OpenAIChatCompletionsModel, Runner, RunResult
+from pydantic import BaseModel
 
-# --- Begin restored custom agent framework classes ---
-
+from config import SMALL_MODEL, get_external_client
+from framework.context import AgentContext, AgentOutput, ContextFormatter
+from framework.models import ModelFactory
+from framework.specialized_agents import StructuredOutputAgent
+from framework.tool_context import set_current_context
+from framework.tools import ToolLoader
 from framework.types import (
     AgentDefinition,
     AgentType,
-    ToolSpecification,
-    OutputSchema,
     InputSchema,
+    OutputSchema,
+    ToolSpecification,
 )
-from framework.models import ModelFactory
-from framework.context import AgentContext, ContextFormatter, AgentOutput
-from framework.specialized_agents import StructuredOutputAgent
-from framework.utils import clean_agent_output, remove_think_tags, ThinkTagFilter
-import json
-import re
-from config import get_external_client, SMALL_MODEL
+from framework.utils import ThinkTagFilter, clean_agent_output, remove_think_tags
+
+# --- Begin restored custom agent framework classes ---
 
 
 @dataclass
 class AgentKwargs:
     """Type-safe container for Agent constructor arguments."""
+
     name: str
     instructions: str
     model: OpenAIChatCompletionsModel
@@ -49,6 +50,7 @@ class AgentKwargs:
 
 class YamlData(TypedDict):
     """Type-safe structure for YAML configuration data."""
+
     agent: Dict[str, Union[str, int, float, bool, list, dict]]
     model: Optional[Dict[str, Union[str, int, float]]]
     tools: Optional[List[Dict[str, Union[str, bool]]]]
@@ -59,6 +61,7 @@ class YamlData(TypedDict):
 
 class AgentData(TypedDict):
     """Type-safe structure for agent data within YAML."""
+
     name: str
     prompt: str
     type: Optional[str]
@@ -82,12 +85,8 @@ class AgentSpecification:
         # Pre-create structured output agent if needed
         if self.definition.agent_type == AgentType.STRUCTURED_OUTPUT:
             if not self.output_model:
-                raise ValueError(
-                    "StructuredOutputAgent requires an output_schema to be defined"
-                )
+                raise ValueError("StructuredOutputAgent requires an output_schema to be defined")
             self.structured_output_agent = self._create_structured_output_agent()
-
-
 
     def _create_output_model(self) -> Optional[Type[BaseModel]]:
         """Create output model from schema if present."""
@@ -102,9 +101,7 @@ class AgentSpecification:
         # Create the thinker agent with tools
         client = get_external_client()
         if client is None:
-            raise ValueError(
-                "Failed to get LM Studio client. Check if LM Studio server is running."
-            )
+            raise ValueError("Failed to get LM Studio client. Check if LM Studio server is running.")
 
         model_settings = ModelSettings(
             temperature=self.definition.model.temperature,
@@ -120,9 +117,7 @@ class AgentSpecification:
         agent_kwargs = AgentKwargs(
             name=self.definition.name,
             instructions=self.definition.prompt,
-            model=OpenAIChatCompletionsModel(
-                model=self.definition.model.name, openai_client=client
-            ),
+            model=OpenAIChatCompletionsModel(model=self.definition.model.name, openai_client=client),
             model_settings=model_settings,
             tools=tools,
         )
@@ -137,7 +132,7 @@ class AgentSpecification:
 
         if self.output_model is None:
             raise ValueError("output_model cannot be None for StructuredOutputAgent")
-        
+
         # Ensure the thinker agent respects the YAML flag for think-token printing
         thinker_agent.print_think_tokens = self.definition.print_think_tokens  # type: ignore[attr-defined]
 
@@ -148,15 +143,11 @@ class AgentSpecification:
             max_iterations=self.definition.max_iterations,
         )
 
-
-
     def create_agent(self) -> Agent:
         """Create an Agent instance with proper configuration."""
         client = get_external_client()
         if client is None:
-            raise ValueError(
-                "Failed to get LM Studio client. Check if LM Studio server is running."
-            )
+            raise ValueError("Failed to get LM Studio client. Check if LM Studio server is running.")
 
         model_settings = ModelSettings(
             temperature=self.definition.model.temperature,
@@ -178,9 +169,7 @@ class AgentSpecification:
         agent_kwargs = AgentKwargs(
             name=self.definition.name,
             instructions=self.definition.prompt,
-            model=OpenAIChatCompletionsModel(
-                model=self.definition.model.name, openai_client=client
-            ),
+            model=OpenAIChatCompletionsModel(model=self.definition.model.name, openai_client=client),
             model_settings=model_settings,
             tools=tools,
             output_type=self.output_model,
@@ -218,12 +207,8 @@ class AgentSpecification:
             set_current_context(context)
 
             # Run the structured output agent
-            result = await self.structured_output_agent.run(
-                full_input
-            )
+            result = await self.structured_output_agent.run(full_input)
             return result.model_dump()
-
-
 
         # Regular agent execution
         agent = self.create_agent()
@@ -268,9 +253,8 @@ class AgentSpecification:
                             if s and s != "[DONE]":
                                 obj = json.loads(s)
                                 for choice in obj.get("choices", []):
-                                    content = (
-                                        choice.get("delta", {}).get("content")
-                                        or choice.get("message", {}).get("content")
+                                    content = choice.get("delta", {}).get("content") or choice.get("message", {}).get(
+                                        "content"
                                     )
                                     if isinstance(content, str) and content:
                                         text_delta = (text_delta or "") + content
@@ -312,11 +296,7 @@ class AgentSpecification:
                 context, self.definition.input_schema, self.definition.name
             )
             if context_input:
-                return (
-                    f"{context_input}\n\nTask: {input_data}"
-                    if input_data
-                    else context_input
-                )
+                return f"{context_input}\n\nTask: {input_data}" if input_data else context_input
 
         return input_data
 

@@ -18,7 +18,6 @@ import shutil
 import subprocess
 from uuid import uuid4
 
-
 # Allow operators to override the sandbox image (e.g., pin to a digest) at deploy time
 _DEFAULT_SANDBOX_IMAGE = "python:3.11-alpine"
 _SANDBOX_IMAGE = os.environ.get("PY_SANDBOX_IMAGE", _DEFAULT_SANDBOX_IMAGE)
@@ -209,4 +208,3 @@ def run_python_sandboxed(
                 },
             }
         )
-

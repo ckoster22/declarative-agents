@@ -5,10 +5,10 @@ This module provides safe file reading and writing capabilities for agents,
 with strict security measures to prevent directory traversal and unauthorized access.
 """
 
+import logging
 import tempfile
 from pathlib import Path
 from typing import Optional
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +31,7 @@ def _validate_filename(filename: str) -> None:
         raise ValueError("Filename must be a non-empty string")
 
     if any(sep in filename for sep in ["/", "\\", ".."]):
-        raise ValueError(
-            "Filename cannot contain path separators or directory traversal"
-        )
+        raise ValueError("Filename cannot contain path separators or directory traversal")
 
     dangerous_chars = ["<", ">", ":", '"', "|", "?", "*"]
     if any(char in filename for char in dangerous_chars):

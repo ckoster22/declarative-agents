@@ -12,5 +12,3 @@ lean_startup_experiment_generator_criteria = [
     "Each experiment includes 'timeline_days' between 1 and 14 and is feasible for a solo founder with low cost; presence of 'estimated_cost' and minimal 'required_assets' supports practicality.",
     "Collectively, at least one experiment tests demand directly (e.g., smoke test, pre-order) and at least one probes problem severity (e.g., interviews with a numeric bar for severe pain reports).",
 ]
-
-

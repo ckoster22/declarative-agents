@@ -7,22 +7,27 @@ including dynamic function imports, tool validation, and declarative agent-as-to
 
 import importlib
 import pathlib
-from typing import List, Callable, Protocol, Optional, Awaitable, Callable as _Callable
+from typing import Awaitable
+from typing import Callable
+from typing import Callable as _Callable
+from typing import List, Optional, Protocol
+
 import yaml
+from agents import FunctionTool, function_tool
 
-from agents import function_tool, FunctionTool
-
-from framework.types import ToolSpecification
-from framework.file_tools import read_file, append_to_file, get_temp_directory_info
-from framework.user_tools import user_input_tool, get_current_datetime_tool
+from framework.file_tools import append_to_file, get_temp_directory_info, read_file
 from framework.input_sources import InputSourceHandler
-from framework.tool_context import get_current_context
 from framework.sandbox_tools import run_python_sandboxed
+from framework.tool_context import get_current_context
+from framework.types import ToolSpecification
+from framework.user_tools import get_current_datetime_tool, user_input_tool
 
 
 class ToolFunction(Protocol):
     """Protocol for tool functions that can be wrapped by function_tool."""
+
     __name__: str
+
     def __call__(self, input: str = "", **kwargs) -> str: ...
 
 
@@ -32,9 +37,7 @@ from framework.context import AgentContext
 _run_agent_as_tool_cb: Optional[_Callable[[str, str, Optional[AgentContext]], Awaitable[str]]] = None
 
 
-def register_run_agent_as_tool(
-    callback: _Callable[[str, str, Optional[AgentContext]], Awaitable[str]]
-) -> None:
+def register_run_agent_as_tool(callback: _Callable[[str, str, Optional[AgentContext]], Awaitable[str]]) -> None:
     """Register the function used to execute agents-as-tools.
 
     This indirection avoids import cycles between tools and agent loading.
@@ -49,8 +52,6 @@ async def run_agent_as_tool(yaml_path: str, input_data: str, context: Optional[A
     return await _run_agent_as_tool_cb(yaml_path, input_data, context)
 
 
-
-
 class ToolLoader:
     """Loads and validates tools for agent use."""
 
@@ -62,7 +63,6 @@ class ToolLoader:
         "get_current_datetime_tool": get_current_datetime_tool,
         "get_temp_directory_info": get_temp_directory_info,
         "run_python_sandboxed": run_python_sandboxed,
-    
     }
 
     @staticmethod
@@ -117,9 +117,7 @@ class ToolLoader:
     def _validate_agent_as_tool(tool: ToolSpecification) -> None:
         """Validate an agent-as-tool specification."""
         if not tool.agent_yaml_path:
-            raise ValueError(
-                f"Tool {tool.name} has agent_as_tool=True but no agent_yaml_path specified"
-            )
+            raise ValueError(f"Tool {tool.name} has agent_as_tool=True but no agent_yaml_path specified")
 
         # Check if YAML file exists
         import os
@@ -128,9 +126,7 @@ class ToolLoader:
             # Attempt to resolve the path relative to the declarative_experiment
             # root directory.  This allows YAML specs to reference sibling files
             # with shorter paths such as `examples/...`.
-            fallback_path = (
-                pathlib.Path(__file__).resolve().parent.parent / tool.agent_yaml_path
-            )
+            fallback_path = pathlib.Path(__file__).resolve().parent.parent / tool.agent_yaml_path
             if fallback_path.exists():
                 tool.agent_yaml_path = str(fallback_path)
             else:
@@ -141,13 +137,9 @@ class ToolLoader:
             with open(tool.agent_yaml_path, "r") as f:
                 data = yaml.safe_load(f)
             if "agent" not in data:
-                raise ValueError(
-                    f"Agent YAML file {tool.agent_yaml_path} must contain 'agent' section"
-                )
+                raise ValueError(f"Agent YAML file {tool.agent_yaml_path} must contain 'agent' section")
         except Exception as e:
-            raise ValueError(
-                f"Error loading agent YAML file {tool.agent_yaml_path}: {e}"
-            )
+            raise ValueError(f"Error loading agent YAML file {tool.agent_yaml_path}: {e}")
 
     @staticmethod
     def _create_agent_tool_function(tool: ToolSpecification) -> Callable:
@@ -159,18 +151,12 @@ class ToolLoader:
             current_context = get_current_context()
 
             # Use input source handler to resolve input
-            resolved_input = InputSourceHandler.resolve_input(
-                tool, input, current_context
-            )
-            return await run_agent_as_tool(
-                tool.agent_yaml_path, resolved_input, current_context
-            )
+            resolved_input = InputSourceHandler.resolve_input(tool, input, current_context)
+            return await run_agent_as_tool(tool.agent_yaml_path, resolved_input, current_context)
 
         # Set function name and docstring
         agent_tool_function.__name__ = tool.name
-        agent_tool_function.__doc__ = (
-            tool.description or f"Agent tool that runs {tool.agent_yaml_path}"
-        )
+        agent_tool_function.__doc__ = tool.description or f"Agent tool that runs {tool.agent_yaml_path}"
 
         return agent_tool_function
 
@@ -179,7 +165,7 @@ class ToolLoader:
         """Import a function dynamically from a string like 'module.function_name'."""
         module_path, function_name = function_path.rsplit(".", 1)
         module = importlib.import_module(module_path)
-        
+
         # Access function from module namespace
         module_dict = module.__dict__
         if function_name not in module_dict:

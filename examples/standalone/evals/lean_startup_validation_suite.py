@@ -14,5 +14,3 @@ lean_startup_validation_criteria = [
     "Each experiment includes 'timeline_days' as a positive integer with a short duration (ideally ≤ 14 days).",
     "Internal consistency: 'success_criteria' aligns with the 'metric' and the experiment's 'objective', and plan-level criteria do not contradict experiment thresholds.",
 ]
-
-

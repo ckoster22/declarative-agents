@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Optional
 
+from framework.context import AgentContext
 from framework.declarative_agents import AgentLoader, AgentType
 from framework.tools import register_run_agent_as_tool
 from framework.utils import remove_think_tags
-from framework.context import AgentContext
 
 
 async def run_agent_as_tool(yaml_path: str, input_data: str, context: Optional[AgentContext] = None) -> str:
@@ -20,5 +20,3 @@ async def run_agent_as_tool(yaml_path: str, input_data: str, context: Optional[A
 
 # Register callback at import time (top-level import; no lazy behavior)
 register_run_agent_as_tool(run_agent_as_tool)
-
-

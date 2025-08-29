@@ -21,12 +21,8 @@ def remove_think_tags(text: str) -> str:
     cleaned_text = re.sub(r"</?think>", "", cleaned_text, flags=re.IGNORECASE)
 
     # Clean up excessive whitespace but preserve single spaces
-    cleaned_text = re.sub(
-        r"\n\s*\n", "\n\n", cleaned_text
-    )  # Normalize multiple line breaks
-    cleaned_text = re.sub(
-        r" +", " ", cleaned_text
-    )  # Normalize multiple spaces to single spaces
+    cleaned_text = re.sub(r"\n\s*\n", "\n\n", cleaned_text)  # Normalize multiple line breaks
+    cleaned_text = re.sub(r" +", " ", cleaned_text)  # Normalize multiple spaces to single spaces
     cleaned_text = cleaned_text.replace("\\n", " ")  # Remove escaped newlines
 
     return cleaned_text.strip()

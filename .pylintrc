@@ -1,0 +1,31 @@
+[MASTER]
+ignore-patterns=^\..*,^build$,^dist$,^venv$,^.venv$
+
+[MESSAGES CONTROL]
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    too-few-public-methods,
+    too-many-arguments,
+    too-many-positional-arguments,
+    too-many-locals,
+    too-many-branches,
+    too-many-statements,
+    duplicate-code
+
+[FORMAT]
+max-line-length=120
+
+[BASIC]
+argument-naming-style=any
+attr-naming-style=any
+variable-naming-style=any
+const-naming-style=any
+class-const-naming-style=any
+
+[DESIGN]
+max-args=10
+max-locals=30
+max-branches=30
+max-statements=200

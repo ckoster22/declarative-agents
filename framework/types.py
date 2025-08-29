@@ -6,9 +6,10 @@ and base models that define the fundamental structure of the framework.
 """
 
 from enum import Enum
-from typing import Dict, List, Union, Any
-from pydantic import BaseModel, Field
-from pydantic import ConfigDict, field_validator, model_validator
+from typing import Any, Dict, List, Union, cast
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
 from config import BIG_MODEL, SMALL_MODEL, Model
 
 
@@ -52,14 +53,14 @@ class AgentConfiguration(BaseModel):
     @field_validator("temperature")
     @classmethod
     def _validate_temperature(cls, value: float) -> float:
-        if not (0.0 <= value <= 2.0):
+        if not 0.0 <= value <= 2.0:
             raise ValueError("temperature must be between 0.0 and 2.0 inclusive")
         return value
 
     @field_validator("top_p")
     @classmethod
     def _validate_top_p(cls, value: float) -> float:
-        if not (0.0 <= value <= 1.0):
+        if not 0.0 <= value <= 1.0:
             raise ValueError("top_p must be between 0.0 and 1.0 inclusive")
         return value
 
@@ -81,9 +82,7 @@ class ToolSpecification(BaseModel):
         default="",
         description="Import path to the function (e.g., 'module.function_name')",
     )
-    description: str = Field(
-        default="", description="Description of what the tool does"
-    )
+    description: str = Field(default="", description="Description of what the tool does")
     agent_as_tool: bool = Field(
         default=False,
         description="Whether this tool should invoke an agent from a YAML file",
@@ -102,14 +101,10 @@ class ToolSpecification(BaseModel):
         # If agent_as_tool is true, agent_yaml_path must be provided
         if self.agent_as_tool:
             if not self.agent_yaml_path:
-                raise ValueError(
-                    f"Tool '{self.name}': agent_yaml_path is required when agent_as_tool=True"
-                )
+                raise ValueError(f"Tool '{self.name}': agent_yaml_path is required when agent_as_tool=True")
             # If invoking an agent, function path should generally be empty to avoid confusion
             if self.function:
-                raise ValueError(
-                    f"Tool '{self.name}': function must be empty when agent_as_tool=True"
-                )
+                raise ValueError(f"Tool '{self.name}': function must be empty when agent_as_tool=True")
         else:
             # Standard function tool must specify a function import path or a built-in name.
             # We intentionally allow non-dotted names here to support framework built-ins
@@ -120,9 +115,7 @@ class ToolSpecification(BaseModel):
                 )
             # agent_yaml_path should not be set for a function tool
             if self.agent_yaml_path:
-                raise ValueError(
-                    f"Tool '{self.name}': agent_yaml_path must be empty when agent_as_tool=False"
-                )
+                raise ValueError(f"Tool '{self.name}': agent_yaml_path must be empty when agent_as_tool=False")
         return self
 
 
@@ -138,9 +131,7 @@ class OutputSchema(BaseModel):
         description="Optional JSON Schema type. If provided, must be 'object'.",
     )
 
-    properties: Dict[str, Any] = Field(
-        default_factory=dict, description="Properties of the output schema"
-    )
+    properties: Dict[str, Any] = Field(default_factory=dict, description="Properties of the output schema")
     required: List[str] = Field(default_factory=list, description="Required properties")
 
     @field_validator("type")
@@ -154,12 +145,12 @@ class OutputSchema(BaseModel):
 
     @model_validator(mode="after")
     def _validate_required_subset(self) -> "OutputSchema":
+        # Help pylint with pydantic FieldInfo type by asserting dict interface
+        props: Dict[str, Any] = dict(self.properties)
         if self.required:
-            missing = [key for key in self.required if key not in self.properties]
+            missing = [key for key in self.required if key not in props]
             if missing:
-                raise ValueError(
-                    f"OutputSchema.required contains keys not present in properties: {missing}"
-                )
+                raise ValueError(f"OutputSchema.required contains keys not present in properties: {missing}")
         return self
 
 
@@ -168,9 +159,7 @@ class InputSchema(BaseModel):
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True, strict=True)
 
-    required_context: List[str] = Field(
-        default_factory=list, description="Required context from other agents"
-    )
+    required_context: List[str] = Field(default_factory=list, description="Required context from other agents")
     properties: Dict[str, Union[str, int, float, bool, list, dict]] = Field(
         default_factory=dict, description="Input properties"
     )
@@ -191,24 +180,21 @@ class AgentDefinition(BaseModel):
     name: str = Field(description="Name of the agent")
     prompt: str = Field(description="Prompt template for the agent")
     model: AgentConfiguration = Field(default_factory=AgentConfiguration)
-    output_schema: OutputSchema = Field(
-        default_factory=lambda: OutputSchema(properties={})
-    )
+    output_schema: OutputSchema = Field(default_factory=lambda: OutputSchema(properties={}))
     input_schema: InputSchema = Field(default_factory=InputSchema)
     tools: List[ToolSpecification] = Field(default_factory=list)
-    agent_type: AgentType = Field(
-        default=AgentType.AGENT, description="Type of agent to create"
-    )
+    agent_type: AgentType = Field(default=AgentType.AGENT, description="Type of agent to create")
     formatter_model: Model = Field(
         default=SMALL_MODEL,
         description="Model name for formatter in structured output agents",
     )
-    print_think_tokens: bool = Field(
-        default=True, description="Whether to print think tokens during streaming"
-    )
+    print_think_tokens: bool = Field(default=True, description="Whether to print think tokens during streaming")
     max_iterations: int | None = Field(
         default=None,
-        description="Override the maximum number of iterations (thought/tool cycles) allowed for this agent. If None, the underlying Runner default is used.",
+        description=(
+            "Override the maximum number of iterations (thought/tool cycles) allowed "
+            "for this agent. If None, the underlying Runner default is used."
+        ),
     )
 
     @field_validator("name")
@@ -236,12 +222,12 @@ class AgentDefinition(BaseModel):
     def _validate_agent_invariants(self) -> "AgentDefinition":
         # Structured output agents must declare an output schema
         if self.agent_type == AgentType.STRUCTURED_OUTPUT:
-            if not self.output_schema.properties:
-                raise ValueError(
-                    "Structured output agents require a non-empty output_schema.properties"
-                )
-            if not self.formatter_model or not self.formatter_model.strip():
-                raise ValueError(
-                    "Structured output agents require a non-empty formatter_model"
-                )
+            # Use model_dump to avoid static analysis confusion with pydantic internals
+            dumped: Dict[str, Any] = cast(Dict[str, Any], self.output_schema.model_dump())  # pylint: disable=no-member
+            props: Dict[str, Any] = cast(Dict[str, Any], dumped.get("properties", {}))
+            if not props:
+                raise ValueError("Structured output agents require a non-empty output_schema.properties")
+            model_str = str(self.formatter_model)
+            if not model_str or not model_str.strip():
+                raise ValueError("Structured output agents require a non-empty formatter_model")
         return self
