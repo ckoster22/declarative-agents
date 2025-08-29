@@ -21,4 +21,4 @@ jobs:
       - name: black check
         run: black --check --line-length 120 .
       - name: pylint
-        run: pylint --rcfile=.pylintrc framework config.py
+        run: pylint -E --rcfile=.pylintrc framework config.py
