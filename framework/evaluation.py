@@ -23,7 +23,7 @@ import asyncio
 import importlib.util
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, cast
 
 from agents import trace
 
