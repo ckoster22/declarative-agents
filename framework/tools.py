@@ -76,14 +76,20 @@ class ToolLoader:
         from framework.types import AgentAsToolSpec, FunctionToolSpec
 
         for tool in tools:
-            if isinstance(tool, AgentAsToolSpec):
-                ToolLoader._validate_agent_as_tool(tool)
-            elif isinstance(tool, FunctionToolSpec):
-                if tool.function in ToolLoader._BUILTIN_TOOLS:
+            if tool.tool_type == "agent":
+                # Type narrowing: tool is AgentAsToolSpec when tool_type == "agent"
+                agent_tool: AgentAsToolSpec = tool  # type: ignore[assignment]
+                ToolLoader._validate_agent_as_tool(agent_tool)
+            elif tool.tool_type == "function":
+                # Type narrowing: tool is FunctionToolSpec when tool_type == "function"
+                func_tool: FunctionToolSpec = tool  # type: ignore[assignment]
+                if func_tool.function in ToolLoader._BUILTIN_TOOLS:
                     # Built-in tools are always valid
                     pass
                 else:
-                    ToolLoader._import_function_from_string(tool.function)
+                    ToolLoader._import_function_from_string(func_tool.function)
+            else:
+                raise ValueError(f"Unknown tool type: {tool.tool_type}")
 
     @staticmethod
     def load_tools(tools: List[ToolSpecification]) -> List[FunctionTool]:
@@ -93,16 +99,20 @@ class ToolLoader:
         loaded_tools = []
 
         for tool in tools:
-            if isinstance(tool, AgentAsToolSpec):
-                current_func: ToolFunction = ToolLoader._create_agent_tool_function(tool)
-            elif isinstance(tool, FunctionToolSpec):
-                if tool.function in ToolLoader._BUILTIN_TOOLS:
+            if tool.tool_type == "agent":
+                # Type narrowing: tool is AgentAsToolSpec when tool_type == "agent"
+                agent_tool: AgentAsToolSpec = tool  # type: ignore[assignment]
+                current_func: ToolFunction = ToolLoader._create_agent_tool_function(agent_tool)
+            elif tool.tool_type == "function":
+                # Type narrowing: tool is FunctionToolSpec when tool_type == "function"
+                func_tool: FunctionToolSpec = tool  # type: ignore[assignment]
+                if func_tool.function in ToolLoader._BUILTIN_TOOLS:
                     # Handle built-in framework tools
-                    current_func = ToolLoader._BUILTIN_TOOLS[tool.function]  # type: ignore[assignment]
+                    current_func = ToolLoader._BUILTIN_TOOLS[func_tool.function]  # type: ignore[assignment]
                 else:
-                    current_func = ToolLoader._import_function_from_string(tool.function)  # type: ignore[assignment]
+                    current_func = ToolLoader._import_function_from_string(func_tool.function)  # type: ignore[assignment]
             else:
-                raise ValueError(f"Unknown tool type: {type(tool)}")
+                raise ValueError(f"Unknown tool type: {tool.tool_type}")
 
             if tool.name != current_func.__name__:
                 function_tool_instance = function_tool(
@@ -118,10 +128,9 @@ class ToolLoader:
     @staticmethod
     def _validate_agent_as_tool(tool: "AgentAsToolSpec") -> None:
         """Validate an agent-as-tool specification."""
-        from framework.types import AgentAsToolSpec
-
-        if not isinstance(tool, AgentAsToolSpec):
-            raise ValueError(f"Tool {tool.name} is not an AgentAsToolSpec")
+        # Type is already narrowed by caller - tool_type == "agent" guarantees AgentAsToolSpec
+        if tool.tool_type != "agent":
+            raise ValueError(f"Tool {tool.name} is not an AgentAsToolSpec (tool_type: {tool.tool_type})")
 
         # Check if YAML file exists
         import os
@@ -149,10 +158,9 @@ class ToolLoader:
     @staticmethod
     def _create_agent_tool_function(tool: "AgentAsToolSpec") -> Callable:
         """Create a function that runs an agent as a tool."""
-        from framework.types import AgentAsToolSpec
-
-        if not isinstance(tool, AgentAsToolSpec):
-            raise ValueError(f"Tool {tool.name} is not an AgentAsToolSpec")
+        # Type is already narrowed by caller - tool_type == "agent" guarantees AgentAsToolSpec
+        if tool.tool_type != "agent":
+            raise ValueError(f"Tool {tool.name} is not an AgentAsToolSpec (tool_type: {tool.tool_type})")
 
         async def agent_tool_function(input: str = "") -> str:
             """Dynamically created agent tool function."""

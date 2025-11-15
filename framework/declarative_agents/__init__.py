@@ -87,9 +87,8 @@ class AgentSpecification:
             ToolLoader.validate_tools(self.definition.tools)
 
         # Pre-create structured output agent if needed
-        from framework.types import StructuredOutputAgentDefinition
-
-        if isinstance(self.definition, StructuredOutputAgentDefinition):
+        # Type narrowing: agent_type == STRUCTURED_OUTPUT guarantees StructuredOutputAgentDefinition
+        if self.definition.agent_type == AgentType.STRUCTURED_OUTPUT:
             # For structured output agents, output_model is guaranteed to be non-None
             # because StructuredOutputSchema requires non-empty properties
             if self.output_model is None:
@@ -145,16 +144,18 @@ class AgentSpecification:
         # Ensure the thinker agent respects the YAML flag for think-token printing
         thinker_agent.print_think_tokens = self.definition.print_think_tokens  # type: ignore[attr-defined]
 
-        from framework.types import StructuredOutputAgentDefinition
-
-        if not isinstance(self.definition, StructuredOutputAgentDefinition):
-            raise ValueError("Expected StructuredOutputAgentDefinition")
+        # Type narrowing: agent_type == STRUCTURED_OUTPUT guarantees StructuredOutputAgentDefinition
+        if self.definition.agent_type != AgentType.STRUCTURED_OUTPUT:
+            raise ValueError(f"Expected StructuredOutputAgentDefinition, got agent_type: {self.definition.agent_type}")
+        
+        # Type narrowing: definition is StructuredOutputAgentDefinition
+        structured_def: StructuredOutputAgentDefinition = self.definition  # type: ignore[assignment]
 
         return StructuredOutputAgent(
             thinker_agent=thinker_agent,
             output_model=self.output_model,
-            formatter_model_name=self.definition.formatter_model,
-            max_iterations=self.definition.max_iterations,
+            formatter_model_name=structured_def.formatter_model,
+            max_iterations=structured_def.max_iterations,
         )
 
     def create_agent(self) -> Agent:
@@ -213,9 +214,8 @@ class AgentSpecification:
         full_input = self._prepare_input(input_data, context)
 
         # Use structured output agent if configured
-        from framework.types import StructuredOutputAgentDefinition
-
-        if isinstance(self.definition, StructuredOutputAgentDefinition):
+        # Type narrowing: agent_type == STRUCTURED_OUTPUT guarantees StructuredOutputAgentDefinition
+        if self.definition.agent_type == AgentType.STRUCTURED_OUTPUT:
             if not self.structured_output_agent:
                 raise ValueError("StructuredOutputAgent not properly initialized")
 

@@ -19,7 +19,7 @@ from rich.text import Text
 from config import BIG_MODEL, Model, big_model_settings, get_external_client
 from framework.declarative_agents import AgentSpecification, ModelSettings, OpenAIChatCompletionsModel
 from framework.evaluation_logging import configure_evaluation_logging
-from framework.types import StructuredOutputAgentDefinition
+from framework.types import AgentType
 from framework.utils import ThinkTagFilter, extract_text_delta_from_event
 
 console = Console()
@@ -43,8 +43,11 @@ class EvaluationOrchestrator:
 
     def __init__(self, agent_spec: AgentSpecification):
         """Initialize the orchestrator with an agent specification."""
+        from framework.types import AgentType
+
         self.agent_spec = agent_spec
-        self.use_structured_output = isinstance(agent_spec.definition, StructuredOutputAgentDefinition)
+        # Type narrowing: use agent_type discriminator instead of isinstance
+        self.use_structured_output = agent_spec.definition.agent_type == AgentType.STRUCTURED_OUTPUT
         self.direct_agent: Optional[Agent] = None
 
         # Initialize direct agent if not using structured output
