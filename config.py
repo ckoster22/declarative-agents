@@ -27,13 +27,20 @@ _external_client_instance = None
 
 
 def get_external_client() -> AsyncOpenAI:
+    """Get the external client instance, using mock if USE_MOCK_LLM is set."""
     global _external_client_instance
     if _external_client_instance is None:
-        api_key_to_use = os.getenv("OPENAI_API_KEY")
-        if api_key_to_use is None:
-            api_key_to_use = os.getenv("TEST_DUMMY_API_KEY", "dummy_for_local_if_no_env_set")
+        use_mock = os.getenv("USE_MOCK_LLM", "").lower() in ("true", "1", "yes")
+        if use_mock:
+            from framework.mock_llm import create_mock_client
 
-        base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1")
+            _external_client_instance = create_mock_client()
+        else:
+            api_key_to_use = os.getenv("OPENAI_API_KEY")
+            if api_key_to_use is None:
+                api_key_to_use = os.getenv("TEST_DUMMY_API_KEY", "dummy_for_local_if_no_env_set")
 
-        _external_client_instance = AsyncOpenAI(base_url=base_url, api_key=api_key_to_use)
+            base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1")
+
+            _external_client_instance = AsyncOpenAI(base_url=base_url, api_key=api_key_to_use)
     return _external_client_instance
