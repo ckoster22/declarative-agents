@@ -7,7 +7,7 @@ including proper streaming and structured output support.
 
 from dataclasses import dataclass
 from inspect import signature
-from typing import Dict, List, Optional, Sequence, Type, TypedDict, Union
+from typing import Dict, List, Optional, Sequence, Type, TypedDict, Union, cast
 
 import yaml
 
@@ -293,6 +293,20 @@ class AgentSpecification:
             return raw_output
 
 
+def _ensure_dict(value: object, error_msg: str) -> Dict[str, object]:
+    """Type guard: ensure value is a dict, raise if not."""
+    if not hasattr(value, "keys") or not hasattr(value, "__getitem__"):
+        raise ValueError(error_msg)
+    return cast(Dict[str, object], value)
+
+
+def _ensure_list(value: object, error_msg: str) -> List[object]:
+    """Type guard: ensure value is a list, raise if not."""
+    if not hasattr(value, "__iter__") or not hasattr(value, "__len__"):
+        raise ValueError(error_msg)
+    return cast(List[object], value)
+
+
 class AgentLoader:
     """Loads agent specifications from YAML files."""
 
@@ -303,17 +317,16 @@ class AgentLoader:
             data = yaml.safe_load(f)
 
         # Enforce top-level YAML structure to fail-fast on unknown keys
-        if not isinstance(data, dict):
-            raise ValueError("YAML root must be a mapping (object)")
+        yaml_dict = _ensure_dict(data, "YAML root must be a mapping (object)")
 
         allowed_top_keys = {"agent", "model", "tools", "output_schema", "input_schema", "max_iterations"}
-        unknown_top = set(data.keys()) - allowed_top_keys
+        unknown_top = set(yaml_dict.keys()) - allowed_top_keys
         if unknown_top:
             raise ValueError(
                 f"Unknown top-level keys in YAML: {sorted(unknown_top)}. Allowed keys: {sorted(allowed_top_keys)}"
             )
 
-        return AgentLoader.load_from_dict(data)
+        return AgentLoader.load_from_dict(cast(YamlData, yaml_dict))
 
     @staticmethod
     def load_from_dict(
@@ -330,9 +343,8 @@ class AgentLoader:
             raise ValueError("YAML must contain 'agent' section")
 
         # Copy to avoid mutating the caller's data and validate keys
-        if not isinstance(data["agent"], dict):
-            raise ValueError("'agent' section must be a mapping (object)")
-        agent_data = dict(data["agent"])  # type: ignore[arg-type]
+        agent_section = _ensure_dict(data["agent"], "'agent' section must be a mapping (object)")
+        agent_data = dict(agent_section)
 
         allowed_agent_keys = {
             "name",
@@ -356,19 +368,18 @@ class AgentLoader:
         except ValueError as e:
             raise ValueError(f"Invalid agent type '{agent_type_str}'. Valid types: {[t.value for t in AgentType]}") from e
 
-        # Gather optional top-level sections with explicit type checks
-        model_config = data.get("model", {})
-        if not isinstance(model_config, dict):
-            raise ValueError("Top-level 'model' must be a mapping (object)")
-        output_schema_cfg = data.get("output_schema", {})
-        if not isinstance(output_schema_cfg, dict):
-            raise ValueError("Top-level 'output_schema' must be a mapping (object)")
-        input_schema_cfg = data.get("input_schema", {})
-        if not isinstance(input_schema_cfg, dict):
-            raise ValueError("Top-level 'input_schema' must be a mapping (object)")
-        tools_cfg = data.get("tools", [])
-        if not isinstance(tools_cfg, list):
-            raise ValueError("Top-level 'tools' must be a list")
+        # Gather optional top-level sections with type guards
+        model_config_raw = data.get("model", {})
+        model_config = _ensure_dict(model_config_raw, "Top-level 'model' must be a mapping (object)")
+        
+        output_schema_cfg_raw = data.get("output_schema", {})
+        output_schema_cfg = _ensure_dict(output_schema_cfg_raw, "Top-level 'output_schema' must be a mapping (object)")
+        
+        input_schema_cfg_raw = data.get("input_schema", {})
+        input_schema_cfg = _ensure_dict(input_schema_cfg_raw, "Top-level 'input_schema' must be a mapping (object)")
+        
+        tools_cfg_raw = data.get("tools", [])
+        tools_cfg = _ensure_list(tools_cfg_raw, "Top-level 'tools' must be a list")
 
         # Build tools as discriminated unions
         tools: List[ToolSpecification] = []

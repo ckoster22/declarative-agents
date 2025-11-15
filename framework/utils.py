@@ -7,7 +7,7 @@ including think tag removal for cleaner agent outputs.
 
 import json
 import re
-from typing import Optional, Union
+from typing import Optional, Union, cast, overload
 
 
 def remove_think_tags(text: str) -> str:
@@ -29,14 +29,34 @@ def remove_think_tags(text: str) -> str:
     return cleaned_text.strip()
 
 
+def _is_str(value: object) -> bool:
+    """Type guard: check if value is a string."""
+    return hasattr(value, "strip") and hasattr(value, "lower") and not hasattr(value, "keys")
+
+
+def _is_dict(value: object) -> bool:
+    """Type guard: check if value is a dict."""
+    return hasattr(value, "keys") and hasattr(value, "__getitem__") and hasattr(value, "items")
+
+
+@overload
+def clean_agent_output(output: str) -> str: ...
+
+
+@overload
+def clean_agent_output(output: dict) -> dict: ...
+
+
 def clean_agent_output(output: Union[str, dict]) -> Union[str, dict]:
-    if isinstance(output, str):
-        return remove_think_tags(output)
-    elif isinstance(output, dict):
-        cleaned_output = {}
-        for key, value in output.items():
-            if isinstance(value, str):
-                cleaned_output[key] = remove_think_tags(value)
+    """Clean agent output by removing think tags from string values."""
+    if _is_str(output):
+        return remove_think_tags(cast(str, output))
+    elif _is_dict(output):
+        cleaned_output: dict = {}
+        output_dict = cast(dict, output)
+        for key, value in output_dict.items():
+            if _is_str(value):
+                cleaned_output[key] = remove_think_tags(cast(str, value))
             else:
                 cleaned_output[key] = value
         return cleaned_output
@@ -68,37 +88,41 @@ def extract_text_delta_from_event(event: object) -> Optional[str]:
     """
     # Case 1: Direct string delta on the event
     ev_delta = getattr(event, "delta", None)
-    if isinstance(ev_delta, str):
-        return ev_delta
+    if ev_delta is not None and _is_str(ev_delta):
+        return cast(str, ev_delta)
 
     # Case 2: Event carries a data payload
     data_obj = getattr(event, "data", None)
 
     # Case 2a: data is a plain string, possibly OpenAI-like SSE line
-    if isinstance(data_obj, str) and data_obj:
-        s = data_obj.strip()
-        if s.startswith("data:"):
-            s = s[5:].strip()
-        if s and s != "[DONE]":
-            # Attempt JSON parse; if it fails, fall back to regex extraction
-            try:
-                obj = json.loads(s)
-                text: Optional[str] = None
-                for choice in obj.get("choices", []):
-                    content = choice.get("delta", {}).get("content") or choice.get("message", {}).get("content")
-                    if isinstance(content, str) and content:
-                        text = (text or "") + content
-                return text
-            except Exception:
-                m = re.search(r'"content"\s*:\s*"(.*?)"', s)
-                return m.group(1) if m else None
+    if data_obj is not None and _is_str(data_obj):
+        data_str = cast(str, data_obj)
+        if data_str:
+            s = data_str.strip()
+            if s.startswith("data:"):
+                s = s[5:].strip()
+            if s and s != "[DONE]":
+                # Attempt JSON parse; if it fails, fall back to regex extraction
+                try:
+                    obj = json.loads(s)
+                    text: Optional[str] = None
+                    for choice in obj.get("choices", []):
+                        content = choice.get("delta", {}).get("content") or choice.get("message", {}).get("content")
+                        if content is not None and _is_str(content):
+                            content_str = cast(str, content)
+                            if content_str:
+                                text = (text or "") + content_str
+                    return text
+                except Exception:
+                    m = re.search(r'"content"\s*:\s*"(.*?)"', s)
+                    return m.group(1) if m else None
         return None
 
     # Case 3: data has a delta attribute
     if data_obj is not None:
         data_delta = getattr(data_obj, "delta", None)
-        if isinstance(data_delta, str):
-            return data_delta
+        if data_delta is not None and _is_str(data_delta):
+            return cast(str, data_delta)
 
     return None
 

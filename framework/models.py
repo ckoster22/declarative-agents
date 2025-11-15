@@ -5,11 +5,21 @@ This module handles the creation of Pydantic models from JSON schemas
 and provides utilities for working with structured output.
 """
 
-from typing import Dict, List, Tuple, Type, Union
+from typing import Dict, List, Tuple, Type, Union, cast
 
 from pydantic import BaseModel, Field, create_model
 
 from framework.types import FieldType, OutputSchema
+
+
+def _is_int(value: object) -> bool:
+    """Type guard: check if value is an integer."""
+    return hasattr(value, "__int__") and not hasattr(value, "__float__") or type(value) is int
+
+
+def _is_dict(value: object) -> bool:
+    """Type guard: check if value is a dict."""
+    return hasattr(value, "keys") and hasattr(value, "__getitem__") and hasattr(value, "items")
 
 
 class ModelFactory:
@@ -34,23 +44,27 @@ class ModelFactory:
             field_kwargs: dict = {"description": description}
             field_type_str = str(field_def.get("type")) if "type" in field_def else None
             if field_type_str == "array":
-                min_items = field_def.get("minItems")
-                max_items = field_def.get("maxItems")
-                if min_items is not None and (not isinstance(min_items, int) or min_items < 0):
+                min_items_raw = field_def.get("minItems")
+                max_items_raw = field_def.get("maxItems")
+                
+                min_items: int | None = cast(int, min_items_raw) if min_items_raw is not None and _is_int(min_items_raw) else None
+                max_items: int | None = cast(int, max_items_raw) if max_items_raw is not None and _is_int(max_items_raw) else None
+                
+                if min_items is not None and min_items < 0:
                     raise ValueError(
                         f"minItems must be a non-negative integer for field '{field_name}' in {model_name}"
                     )
-                if max_items is not None and (not isinstance(max_items, int) or max_items < 0):
+                if max_items is not None and max_items < 0:
                     raise ValueError(
                         f"maxItems must be a non-negative integer for field '{field_name}' in {model_name}"
                     )
-                if isinstance(min_items, int) and isinstance(max_items, int) and max_items < min_items:
+                if min_items is not None and max_items is not None and max_items < min_items:
                     raise ValueError(
                         f"maxItems ({max_items}) must be >= minItems ({min_items}) for field '{field_name}' in {model_name}"
                     )
-                if isinstance(min_items, int):
+                if min_items is not None:
                     field_kwargs["min_length"] = min_items
-                if isinstance(max_items, int):
+                if max_items is not None:
                     field_kwargs["max_length"] = max_items
             else:
                 # If minItems/maxItems are present on non-array fields, that's invalid
@@ -88,16 +102,18 @@ class ModelFactory:
         if field_type_str == FieldType.BOOLEAN:
             return bool
         if field_type_str == FieldType.ARRAY:
-            items_def = field_def.get("items")
-            if not isinstance(items_def, dict) or not items_def:
+            items_def_raw = field_def.get("items")
+            if not _is_dict(items_def_raw) or not items_def_raw:
                 raise ValueError(f"Array field {model_name_prefix} must specify a non-empty 'items' object")
+            items_def = cast(Dict[str, Union[str, int, float, bool, list, dict]], items_def_raw)
             item_type = ModelFactory._python_type_from_schema(items_def, f"{model_name_prefix}_item")
             return List[item_type]  # type: ignore[valid-type]
         if field_type_str == "object":
             # Build a nested model from properties; require non-empty properties
-            props = field_def.get("properties")
-            if not isinstance(props, dict) or not props:
+            props_raw = field_def.get("properties")
+            if not _is_dict(props_raw) or not props_raw:
                 raise ValueError(f"Object field {model_name_prefix} must define non-empty 'properties'")
+            props = cast(Dict[str, Union[str, int, float, bool, list, dict]], props_raw)
             nested_fields: Dict[str, Union[Type, Tuple[Type, Field]]] = {}
             for nested_name, nested_def in props.items():
                 nested_type = ModelFactory._python_type_from_schema(nested_def, f"{model_name_prefix}_{nested_name}")

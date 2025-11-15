@@ -84,6 +84,16 @@ def _load_eval_module(yaml_path: str) -> ModuleType:
     return module
 
 
+def _is_list(value: object) -> bool:
+    """Type guard: check if value is a list."""
+    return hasattr(value, "__iter__") and hasattr(value, "__len__") and not hasattr(value, "keys")
+
+
+def _is_list_or_tuple(value: object) -> bool:
+    """Type guard: check if value is a list or tuple."""
+    return _is_list(value) or (hasattr(value, "__iter__") and hasattr(value, "__len__") and hasattr(value, "__getitem__"))
+
+
 def _extract_suite_and_criteria(module: ModuleType) -> Tuple[List[Dict[str, Any]], List[str]]:
     """Extract the test suite list and criteria list from the module via naming convention.
 
@@ -94,10 +104,10 @@ def _extract_suite_and_criteria(module: ModuleType) -> Tuple[List[Dict[str, Any]
     criteria: Optional[List[str]] = None
 
     for attr_name, attr_val in vars(module).items():
-        if attr_name.endswith("_test_suite") and isinstance(attr_val, list):
-            test_suite = attr_val
-        elif attr_name.endswith("_criteria") and isinstance(attr_val, (list, tuple)):
-            criteria = [str(c) for c in attr_val]
+        if attr_name.endswith("_test_suite") and _is_list(attr_val):
+            test_suite = cast(List[Dict[str, Any]], attr_val)
+        elif attr_name.endswith("_criteria") and _is_list_or_tuple(attr_val):
+            criteria = [str(c) for c in cast(List[Any], attr_val)]
 
     if test_suite is None or criteria is None:
         raise AttributeError(

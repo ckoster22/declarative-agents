@@ -12,6 +12,11 @@ from pydantic import BaseModel, Field
 
 from framework.types import InputSchema
 
+
+def _is_dict(value: object) -> bool:
+    """Type guard: check if value is a dict."""
+    return hasattr(value, "keys") and hasattr(value, "__getitem__") and hasattr(value, "items")
+
 # Type alias for agent output
 AgentOutput = Union[Dict[str, Union[str, int, float, bool]], str]
 
@@ -41,9 +46,10 @@ class ContextFormatter:
     @staticmethod
     def format_output_for_chat_history(output: AgentOutput, agent_name: str) -> str:
         """Render a single agent output into a readable chat history entry."""
-        if isinstance(output, dict):
+        if _is_dict(output):
+            output_dict = cast(Dict[str, Union[str, int, float, bool]], output)
             formatted_parts = [f"Output from {agent_name}:"]
-            for key, value in output.items():
+            for key, value in output_dict.items():
                 formatted_parts.append(f"  {key}: {value}")
             return "\n".join(formatted_parts)
         return f"Output from {agent_name}: {output}"
@@ -61,16 +67,16 @@ class ContextFormatter:
                 if context.has_output(required_agent):
                     output = context.get_output(required_agent)
                     context_parts.append(f"\nFrom {required_agent}:")
-                    if isinstance(output, dict):
-                        context_parts.append(json.dumps(output, indent=2))
+                    if output is not None and _is_dict(output):
+                        context_parts.append(json.dumps(cast(Dict[str, Union[str, int, float, bool]], output), indent=2))
                     else:
                         context_parts.append(str(output))
         else:
             # Avoid shadowing the function argument name
             for producer_name, output in context.agent_outputs.items():
                 context_parts.append(f"\nFrom {producer_name}:")
-                if isinstance(output, dict):
-                    context_parts.append(json.dumps(output, indent=2))
+                if _is_dict(output):
+                    context_parts.append(json.dumps(cast(Dict[str, Union[str, int, float, bool]], output), indent=2))
                 else:
                     context_parts.append(str(output))
 
