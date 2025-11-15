@@ -48,7 +48,7 @@ agent:
     6. **CRITICAL**: You must track and include ALL research findings from `perform_research_tool` calls in your final `gathered_knowledge` output.
 
 model:
-  name: "qwen3-30b-a3b-2507"
+  name: "qwen/qwen3-30b-a3b-2507"
   temperature: 0.6
   top_p: 0.95
 

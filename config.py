@@ -9,11 +9,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Global model configuration constants
-BIG_MODEL = "qwen3-30b-a3b-2507"
+BIG_MODEL = "qwen/qwen3-30b-a3b-2507"
 SMALL_MODEL = "qwen3-1.7b"
 
 # Type alias for model names - only these two values are allowed
-Model = Literal["qwen3-30b-a3b-2507", "qwen3-1.7b"]
+Model = Literal["qwen/qwen3-30b-a3b-2507", "qwen3-1.7b"]
 
 # Default model settings for all agents
 default_model_settings = ModelSettings(temperature=0.6, top_p=0.95)

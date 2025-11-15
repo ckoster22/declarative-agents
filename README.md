@@ -24,7 +24,7 @@ agent:
   prompt: "You are a helpful assistant."
 
 model:
-  name: "qwen3-30b-a3b-2507"
+  name: "qwen/qwen3-30b-a3b-2507"
   temperature: 0.7
   max_tokens: 1000
 
@@ -68,7 +68,7 @@ agent:
     3. call_story_agent(formatted_input)
 
 model:
-  name: "qwen3-30b-a3b-2507"
+  name: "qwen/qwen3-30b-a3b-2507"
   temperature: 0.1
 
 tools:
@@ -93,7 +93,7 @@ agent:
   prompt: "System instructions"   # Required: Agent's system prompt
 
 model:                           # Optional: Model configuration
-  name: "qwen3-30b-a3b-2507"    # Model name
+  name: "qwen/qwen3-30b-a3b-2507"    # Model name
   temperature: 0.7               # Temperature (0.0-1.0)
   top_p: 0.95                   # Top-p sampling
   max_tokens: 1000              # Maximum tokens

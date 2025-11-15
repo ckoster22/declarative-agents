@@ -10,7 +10,7 @@ agent:
     - Do not include JSON; just natural text.
 
 model:
-  name: "qwen3-30b-a3b-2507"
+  name: "qwen/qwen3-30b-a3b-2507"
   temperature: 0.7
   top_p: 0.95
   max_tokens: 800
