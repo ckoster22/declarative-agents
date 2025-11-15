@@ -12,14 +12,16 @@ from typing import Optional
 
 from framework.context import AgentContext
 
-_current_context: ContextVar[Optional[AgentContext]] = ContextVar("_current_context", default=None)
+# Use empty context as default instead of None to avoid needless None checks
+_empty_context = AgentContext()
+_current_context: ContextVar[AgentContext] = ContextVar("_current_context", default=_empty_context)
 
 
 def set_current_context(context: Optional[AgentContext]) -> None:
     """Set the current context for tool execution for this task."""
-    _current_context.set(context)
+    _current_context.set(context if context is not None else _empty_context)
 
 
-def get_current_context() -> Optional[AgentContext]:
+def get_current_context() -> AgentContext:
     """Get the current context for tool execution for this task."""
     return _current_context.get()

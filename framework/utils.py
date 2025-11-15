@@ -5,8 +5,9 @@ This module provides common utilities used across the framework,
 including think tag removal for cleaner agent outputs.
 """
 
+import json
 import re
-from typing import Union
+from typing import Optional, Union
 
 
 def remove_think_tags(text: str) -> str:
@@ -49,6 +50,57 @@ def is_think_tag_token(token: str) -> bool:
 
     token_lower = token.lower()
     return "<think>" in token_lower or "</think>" in token_lower
+
+
+def extract_text_delta_from_event(event: object) -> Optional[str]:
+    """Extract a textual delta from a streaming event without using exceptions for control flow.
+
+    This function handles multiple possible event shapes produced by different SDKs:
+    - Direct string delta on the event (event.delta)
+    - Data payload that is a plain string (possibly OpenAI-like SSE line)
+    - Structured data object with a delta attribute (event.data.delta)
+
+    Args:
+        event: The streaming event object
+
+    Returns:
+        The extracted text delta string, or None if no text delta could be extracted
+    """
+    # Case 1: Direct string delta on the event
+    ev_delta = getattr(event, "delta", None)
+    if isinstance(ev_delta, str):
+        return ev_delta
+
+    # Case 2: Event carries a data payload
+    data_obj = getattr(event, "data", None)
+
+    # Case 2a: data is a plain string, possibly OpenAI-like SSE line
+    if isinstance(data_obj, str) and data_obj:
+        s = data_obj.strip()
+        if s.startswith("data:"):
+            s = s[5:].strip()
+        if s and s != "[DONE]":
+            # Attempt JSON parse; if it fails, fall back to regex extraction
+            try:
+                obj = json.loads(s)
+                text: Optional[str] = None
+                for choice in obj.get("choices", []):
+                    content = choice.get("delta", {}).get("content") or choice.get("message", {}).get("content")
+                    if isinstance(content, str) and content:
+                        text = (text or "") + content
+                return text
+            except Exception:
+                m = re.search(r'"content"\s*:\s*"(.*?)"', s)
+                return m.group(1) if m else None
+        return None
+
+    # Case 3: data has a delta attribute
+    if data_obj is not None:
+        data_delta = getattr(data_obj, "delta", None)
+        if isinstance(data_delta, str):
+            return data_delta
+
+    return None
 
 
 class ThinkTagFilter:

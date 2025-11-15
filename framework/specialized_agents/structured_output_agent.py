@@ -5,16 +5,14 @@ This agent provides a two-step thinking and formatting process that can be
 used declaratively through YAML configuration files.
 """
 
-import json
 import logging
-import re
 from typing import Generic, Optional, Type, TypeVar
 
 from agents import Agent, OpenAIChatCompletionsModel, Runner, RunResult
 from pydantic import BaseModel
 
 from config import BIG_MODEL, SMALL_MODEL, Model, get_external_client
-from framework.utils import ThinkTagFilter, remove_think_tags
+from framework.utils import ThinkTagFilter, extract_text_delta_from_event, remove_think_tags
 
 logger = logging.getLogger(__name__)
 
@@ -85,39 +83,6 @@ Your output MUST be ONLY the JSON object, with no other text, explanations, or m
             f"Initialized StructuredOutputAgent for {self.thinker_agent.name} -> {self.formatter_agent.name} (internal)"
         )
 
-    def _extract_text_delta(self, event: object) -> str | None:
-        """Extract a textual delta from a streaming event without using exceptions for control flow."""
-        # Case 1: direct string delta
-        ev_delta = getattr(event, "delta", None)
-        if isinstance(ev_delta, str):
-            return ev_delta
-
-        data_obj = getattr(event, "data", None)
-        # Case 2: data is a plain string, possibly OpenAI-like SSE line
-        if isinstance(data_obj, str) and data_obj:
-            s = data_obj.strip()
-            if s.startswith("data:"):
-                s = s[5:].strip()
-            if s and s != "[DONE]":
-                # Attempt JSON parse; if it fails, fall back to regex extraction
-                try:
-                    obj = json.loads(s)
-                    text: str | None = None
-                    for choice in obj.get("choices", []):
-                        content = choice.get("delta", {}).get("content") or choice.get("message", {}).get("content")
-                        if isinstance(content, str) and content:
-                            text = (text or "") + content
-                    return text
-                except Exception:
-                    m = re.search(r'"content"\s*:\s*"(.*?)"', s)
-                    return m.group(1) if m else None
-            return None
-
-        # Case 3: data has a delta attribute
-        data_delta = getattr(data_obj, "delta", None)
-        if isinstance(data_delta, str):
-            return data_delta
-        return None
 
     async def run(self, input_data: str) -> OutputType:
         """
@@ -146,7 +111,7 @@ Your output MUST be ONLY the JSON object, with no other text, explanations, or m
 
         raw_chunks: list[str] = []
         async for event in streamed.stream_events():
-            text_delta = self._extract_text_delta(event)
+            text_delta = extract_text_delta_from_event(event)
             if text_delta is None:
                 continue
 

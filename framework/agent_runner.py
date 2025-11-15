@@ -4,7 +4,6 @@ from typing import Optional
 
 from framework.context import AgentContext
 from framework.declarative_agents import AgentLoader, AgentType
-from framework.tools import register_run_agent_as_tool
 from framework.utils import remove_think_tags
 
 
@@ -16,7 +15,3 @@ async def run_agent_as_tool(yaml_path: str, input_data: str, context: Optional[A
     agent_spec = AgentLoader.load_from_file(yaml_path)
     result = await agent_spec.run(input_data, context=context, agent_type=AgentType.TOOL)
     return remove_think_tags(str(result))
-
-
-# Register callback at import time (top-level import; no lazy behavior)
-register_run_agent_as_tool(run_agent_as_tool)

@@ -8,22 +8,33 @@ with strict security measures to prevent directory traversal and unauthorized ac
 import logging
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Global temp directory for file operations
-_TEMP_DIR: Optional[Path] = None
+
+class FileSystemManager:
+    """Manages file system operations with encapsulated state."""
+
+    def __init__(self):
+        self._temp_dir: Path | None = None
+
+    @property
+    def temp_dir(self) -> Path:
+        """Get or create the dedicated temp directory for file operations."""
+        if self._temp_dir is None:
+            # Create a unique temp directory for this session
+            self._temp_dir = Path(tempfile.mkdtemp(prefix="declarative_framework_"))
+            logger.info(f"Created secure temp directory: {self._temp_dir}")
+        return self._temp_dir
+
+
+# Global instance for backward compatibility
+_file_system_manager = FileSystemManager()
 
 
 def _get_temp_dir() -> Path:
     """Get or create the dedicated temp directory for file operations."""
-    global _TEMP_DIR
-    if _TEMP_DIR is None:
-        # Create a unique temp directory for this session
-        _TEMP_DIR = Path(tempfile.mkdtemp(prefix="declarative_framework_"))
-        logger.info(f"Created secure temp directory: {_TEMP_DIR}")
-    return _TEMP_DIR
+    return _file_system_manager.temp_dir
 
 
 def _validate_filename(filename: str) -> None:
@@ -63,38 +74,47 @@ def _get_secure_file_path(filename: str) -> Path:
 
 
 def read_file(filename: str) -> str:
-    file_path = _get_secure_file_path(filename)
+    """Read a file from the secure temp directory.
 
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        logger.debug(f"Successfully read file: {filename}")
-        return content
-    except FileNotFoundError:
-        logger.warning(f"File not found: {filename}")
-        raise FileNotFoundError(f"File '{filename}' not found in temp directory")
-    except UnicodeDecodeError as e:
-        logger.error(f"Unicode decode error reading file {filename}: {e}")
-        raise IOError(f"Unable to read file '{filename}': encoding error")
-    except OSError as e:
-        logger.error("OS error reading file %s: %s", filename, e)
-        raise IOError(f"Error reading file '{filename}': {str(e)}")
+    Args:
+        filename: The filename to read
+
+    Returns:
+        The file contents as a string
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist
+        UnicodeDecodeError: If the file cannot be decoded as UTF-8
+        OSError: If there's an OS-level error reading the file
+    """
+    file_path = _get_secure_file_path(filename)
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    logger.debug(f"Successfully read file: {filename}")
+    return content
 
 
 def append_to_file(filename: str, content: str) -> str:
+    """Append content to a file in the secure temp directory.
+
+    Args:
+        filename: The filename to append to
+        content: The content to append
+
+    Returns:
+        A success message
+
+    Raises:
+        OSError: If there's an OS-level error writing to the file
+    """
     file_path = _get_secure_file_path(filename)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    try:
-        file_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(file_path, "a", encoding="utf-8") as f:
+        f.write(content)
 
-        with open(file_path, "a", encoding="utf-8") as f:
-            f.write(content)
-
-        logger.debug(f"Successfully appended to file: {filename}")
-        return f"Successfully appended content to file '{filename}' at: {file_path}"
-    except OSError as e:
-        logger.error("OS error appending to file %s: %s", filename, e)
-        raise IOError(f"Error appending to file '{filename}': {str(e)}")
+    logger.debug(f"Successfully appended to file: {filename}")
+    return f"Successfully appended content to file '{filename}' at: {file_path}"
 
 
 def get_temp_directory_info() -> str:

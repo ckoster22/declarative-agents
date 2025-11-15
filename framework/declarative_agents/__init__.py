@@ -5,8 +5,6 @@ This module handles the creation and execution of agents from YAML specification
 including proper streaming and structured output support.
 """
 
-import json
-import re
 from dataclasses import dataclass
 from inspect import signature
 from typing import Dict, List, Optional, Sequence, Type, TypedDict, Union
@@ -24,13 +22,19 @@ from framework.specialized_agents import StructuredOutputAgent
 from framework.tool_context import set_current_context
 from framework.tools import ToolLoader
 from framework.types import (
+    AgentAsToolSpec,
     AgentDefinition,
     AgentType,
+    FunctionToolSpec,
     InputSchema,
+    OrchestratorAgentDefinition,
     OutputSchema,
+    StandardAgentDefinition,
+    StructuredOutputAgentDefinition,
+    StructuredOutputSchema,
     ToolSpecification,
 )
-from framework.utils import ThinkTagFilter, clean_agent_output, remove_think_tags
+from framework.utils import ThinkTagFilter, clean_agent_output, extract_text_delta_from_event, remove_think_tags
 
 # --- Begin restored custom agent framework classes ---
 
@@ -83,8 +87,12 @@ class AgentSpecification:
             ToolLoader.validate_tools(self.definition.tools)
 
         # Pre-create structured output agent if needed
-        if self.definition.agent_type == AgentType.STRUCTURED_OUTPUT:
-            if not self.output_model:
+        from framework.types import StructuredOutputAgentDefinition
+
+        if isinstance(self.definition, StructuredOutputAgentDefinition):
+            # For structured output agents, output_model is guaranteed to be non-None
+            # because StructuredOutputSchema requires non-empty properties
+            if self.output_model is None:
                 raise ValueError("StructuredOutputAgent requires an output_schema to be defined")
             self.structured_output_agent = self._create_structured_output_agent()
 
@@ -130,11 +138,17 @@ class AgentSpecification:
             tools=list(agent_kwargs.tools),
         )
 
-        if self.output_model is None:
-            raise ValueError("output_model cannot be None for StructuredOutputAgent")
+        # output_model is guaranteed to be non-None for StructuredOutputAgentDefinition
+        # because StructuredOutputSchema requires non-empty properties
+        assert self.output_model is not None, "output_model cannot be None for StructuredOutputAgent"
 
         # Ensure the thinker agent respects the YAML flag for think-token printing
         thinker_agent.print_think_tokens = self.definition.print_think_tokens  # type: ignore[attr-defined]
+
+        from framework.types import StructuredOutputAgentDefinition
+
+        if not isinstance(self.definition, StructuredOutputAgentDefinition):
+            raise ValueError("Expected StructuredOutputAgentDefinition")
 
         return StructuredOutputAgent(
             thinker_agent=thinker_agent,
@@ -199,7 +213,9 @@ class AgentSpecification:
         full_input = self._prepare_input(input_data, context)
 
         # Use structured output agent if configured
-        if self.definition.agent_type == AgentType.STRUCTURED_OUTPUT:
+        from framework.types import StructuredOutputAgentDefinition
+
+        if isinstance(self.definition, StructuredOutputAgentDefinition):
             if not self.structured_output_agent:
                 raise ValueError("StructuredOutputAgent not properly initialized")
 
@@ -232,48 +248,7 @@ class AgentSpecification:
         think_filter = ThinkTagFilter()
         should_print_think = bool(self.definition.print_think_tokens)
         async for event in streamed.stream_events():
-            # Unified extraction of textual delta across possible event shapes
-            text_delta: Optional[str] = None
-
-            # Case 1: Event itself carries a string delta (e.g., ResponseOutputTextDeltaEvent)
-            try:
-                ev_delta = event.delta
-                if isinstance(ev_delta, str):
-                    text_delta = ev_delta
-            except AttributeError:
-                # Case 2: Event has a data object (SDKs sometimes nest the payload)
-                try:
-                    data_obj = event.data
-                    if isinstance(data_obj, str):
-                        # Attempt to parse OpenAI-like SSE JSON lines
-                        try:
-                            s = data_obj.strip()
-                            if s.startswith("data:"):
-                                s = s[5:].strip()
-                            if s and s != "[DONE]":
-                                obj = json.loads(s)
-                                for choice in obj.get("choices", []):
-                                    content = choice.get("delta", {}).get("content") or choice.get("message", {}).get(
-                                        "content"
-                                    )
-                                    if isinstance(content, str) and content:
-                                        text_delta = (text_delta or "") + content
-                        except Exception:
-                            # Conservative plaintext fallback
-                            m = re.search(r'"content"\s*:\s*"(.*?)"', data_obj)
-                            if m:
-                                text_delta = m.group(1)
-                    elif data_obj is not None:
-                        # data may be a structured event with a delta attribute
-                        try:
-                            data_delta = data_obj.delta
-                            if isinstance(data_delta, str):
-                                text_delta = data_delta
-                        except AttributeError:
-                            pass
-                except AttributeError:
-                    pass
-
+            text_delta = extract_text_delta_from_event(event)
             if text_delta is None:
                 continue
 
@@ -374,11 +349,12 @@ class AgentLoader:
             )
 
         # Map the YAML `type` field (string) ➜ enum value expected by pydantic
+        # Strict validation: fail fast on invalid agent types
         agent_type_str = agent_data.pop("type", AgentType.AGENT.value)
         try:
             agent_type = AgentType(agent_type_str)
-        except ValueError:
-            agent_type = AgentType.AGENT
+        except ValueError as e:
+            raise ValueError(f"Invalid agent type '{agent_type_str}'. Valid types: {[t.value for t in AgentType]}") from e
 
         # Gather optional top-level sections with explicit type checks
         model_config = data.get("model", {})
@@ -394,20 +370,62 @@ class AgentLoader:
         if not isinstance(tools_cfg, list):
             raise ValueError("Top-level 'tools' must be a list")
 
-        # Build the AgentDefinition explicitly so we keep default values intact
-        # Construct pydantic model – will enforce schema and invariants via validators
-        definition = AgentDefinition(
-            name=str(agent_data["name"]),
-            prompt=str(agent_data["prompt"]),
-            model=model_config,  # type: ignore[arg-type]  # Pydantic will parse dict ➜ AgentConfiguration
-            output_schema=OutputSchema(**output_schema_cfg),  # type: ignore[arg-type]
-            input_schema=InputSchema(**input_schema_cfg),  # type: ignore[arg-type]
-            tools=[ToolSpecification(**tool) for tool in tools_cfg],  # type: ignore[arg-type,union-attr]
-            agent_type=agent_type,
-            formatter_model=str(agent_data.get("formatter_model", SMALL_MODEL)),
-            print_think_tokens=bool(agent_data.get("print_think_tokens", True)),
-            max_iterations=agent_data.get("max_iterations", data.get("max_iterations")),  # type: ignore[arg-type]
-        )  # type: ignore[arg-type]
+        # Build tools as discriminated unions
+        tools: List[ToolSpecification] = []
+        for tool_dict in tools_cfg:
+            if tool_dict.get("agent_as_tool", False):
+                tool = AgentAsToolSpec(
+                    name=str(tool_dict["name"]),
+                    agent_yaml_path=str(tool_dict.get("agent_yaml_path", "")),
+                    description=str(tool_dict.get("description", "")),
+                    input_template=str(tool_dict.get("input_template", "{input}")),
+                )
+            else:
+                tool = FunctionToolSpec(
+                    name=str(tool_dict["name"]),
+                    function=str(tool_dict.get("function", "")),
+                    description=str(tool_dict.get("description", "")),
+                    input_template=str(tool_dict.get("input_template", "{input}")),
+                )
+            tools.append(tool)
+
+        # Build the appropriate discriminated union type based on agent_type
+        # StructuredOutputSchema will validate non-empty properties, so no need to check here
+        if agent_type == AgentType.STRUCTURED_OUTPUT:
+            definition: AgentDefinition = StructuredOutputAgentDefinition(
+                name=str(agent_data["name"]),
+                prompt=str(agent_data["prompt"]),
+                model=model_config,  # type: ignore[arg-type]
+                output_schema=StructuredOutputSchema(**output_schema_cfg),  # type: ignore[arg-type]
+                input_schema=InputSchema(**input_schema_cfg),  # type: ignore[arg-type]
+                tools=tools,
+                formatter_model=str(agent_data.get("formatter_model", SMALL_MODEL)),
+                print_think_tokens=bool(agent_data.get("print_think_tokens", True)),
+                max_iterations=agent_data.get("max_iterations", data.get("max_iterations")),  # type: ignore[arg-type]
+            )
+        elif agent_type == AgentType.ORCHESTRATOR:
+            definition = OrchestratorAgentDefinition(
+                name=str(agent_data["name"]),
+                prompt=str(agent_data["prompt"]),
+                model=model_config,  # type: ignore[arg-type]
+                output_schema=OutputSchema(**output_schema_cfg),  # type: ignore[arg-type]
+                input_schema=InputSchema(**input_schema_cfg),  # type: ignore[arg-type]
+                tools=tools,
+                print_think_tokens=bool(agent_data.get("print_think_tokens", True)),
+                max_iterations=agent_data.get("max_iterations", data.get("max_iterations")),  # type: ignore[arg-type]
+            )
+        else:
+            definition = StandardAgentDefinition(
+                name=str(agent_data["name"]),
+                prompt=str(agent_data["prompt"]),
+                agent_type=agent_type,  # type: ignore[arg-type]
+                model=model_config,  # type: ignore[arg-type]
+                output_schema=OutputSchema(**output_schema_cfg),  # type: ignore[arg-type]
+                input_schema=InputSchema(**input_schema_cfg),  # type: ignore[arg-type]
+                tools=tools,
+                print_think_tokens=bool(agent_data.get("print_think_tokens", True)),
+                max_iterations=agent_data.get("max_iterations", data.get("max_iterations")),  # type: ignore[arg-type]
+            )
 
         return AgentSpecification(definition)
 

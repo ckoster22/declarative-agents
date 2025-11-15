@@ -6,11 +6,35 @@ and base models that define the fundamental structure of the framework.
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Union, cast
+from pathlib import Path
+from typing import Any, Dict, List, Literal, Union, cast
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from config import BIG_MODEL, SMALL_MODEL, Model
+
+# Type aliases for semantic clarity
+FilePath = Path
+DirectoryPath = Path
+YamlPath = Path
+
+
+class NonEmptyDict(dict):
+    """Dictionary that must contain at least one key-value pair."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self:
+            raise ValueError("NonEmptyDict must contain at least one item")
+
+
+class NonEmptyList(list):
+    """List that must contain at least one element."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        if not self:
+            raise ValueError("NonEmptyList must contain at least one element")
 
 
 class AgentType(str, Enum):
@@ -72,51 +96,37 @@ class AgentConfiguration(BaseModel):
         return value
 
 
-class ToolSpecification(BaseModel):
-    """Specification for a tool that can be used by an agent."""
+class FunctionToolSpec(BaseModel):
+    """Specification for a function-based tool."""
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True, strict=True)
 
+    tool_type: Literal["function"] = "function"
     name: str = Field(description="Name of the tool")
-    function: str = Field(
-        default="",
-        description="Import path to the function (e.g., 'module.function_name')",
-    )
+    function: str = Field(description="Import path to the function (e.g., 'module.function_name')")
     description: str = Field(default="", description="Description of what the tool does")
-    agent_as_tool: bool = Field(
-        default=False,
-        description="Whether this tool should invoke an agent from a YAML file",
-    )
-    agent_yaml_path: str = Field(
-        default="",
-        description="Path to the agent YAML file (required when agent_as_tool=True)",
-    )
     input_template: str = Field(
         default="{input}",
         description="Template for agent input with {input} placeholder and other parameters",
     )
 
-    @model_validator(mode="after")
-    def _validate_tool_invariants(self) -> "ToolSpecification":
-        # If agent_as_tool is true, agent_yaml_path must be provided
-        if self.agent_as_tool:
-            if not self.agent_yaml_path:
-                raise ValueError(f"Tool '{self.name}': agent_yaml_path is required when agent_as_tool=True")
-            # If invoking an agent, function path should generally be empty to avoid confusion
-            if self.function:
-                raise ValueError(f"Tool '{self.name}': function must be empty when agent_as_tool=True")
-        else:
-            # Standard function tool must specify a function import path or a built-in name.
-            # We intentionally allow non-dotted names here to support framework built-ins
-            # (validated later by ToolLoader), while still requiring a non-empty value.
-            if not self.function:
-                raise ValueError(
-                    f"Tool '{self.name}': function import path or built-in name is required when agent_as_tool=False"
-                )
-            # agent_yaml_path should not be set for a function tool
-            if self.agent_yaml_path:
-                raise ValueError(f"Tool '{self.name}': agent_yaml_path must be empty when agent_as_tool=False")
-        return self
+
+class AgentAsToolSpec(BaseModel):
+    """Specification for an agent-as-tool."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True, strict=True)
+
+    tool_type: Literal["agent"] = "agent"
+    name: str = Field(description="Name of the tool")
+    agent_yaml_path: str = Field(description="Path to the agent YAML file")
+    description: str = Field(default="", description="Description of what the tool does")
+    input_template: str = Field(
+        default="{input}",
+        description="Template for agent input with {input} placeholder and other parameters",
+    )
+
+
+ToolSpecification = Union[FunctionToolSpec, AgentAsToolSpec]
 
 
 class OutputSchema(BaseModel):
@@ -154,6 +164,45 @@ class OutputSchema(BaseModel):
         return self
 
 
+class StructuredOutputSchema(BaseModel):
+    """Schema definition for structured output with required non-empty properties."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True, strict=True)
+
+    type: str | None = Field(
+        default=None,
+        description="Optional JSON Schema type. If provided, must be 'object'.",
+    )
+
+    properties: Dict[str, Any] = Field(description="Properties of the output schema (must be non-empty)")
+    required: List[str] = Field(default_factory=list, description="Required properties")
+
+    @field_validator("properties")
+    @classmethod
+    def _validate_properties_non_empty(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+        if not value:
+            raise ValueError("StructuredOutputSchema.properties must be non-empty")
+        return value
+
+    @field_validator("type")
+    @classmethod
+    def _validate_type(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        if value != "object":
+            raise ValueError("StructuredOutputSchema.type must be 'object' when provided")
+        return value
+
+    @model_validator(mode="after")
+    def _validate_required_subset(self) -> "StructuredOutputSchema":
+        props: Dict[str, Any] = dict(self.properties)
+        if self.required:
+            missing = [key for key in self.required if key not in props]
+            if missing:
+                raise ValueError(f"StructuredOutputSchema.required contains keys not present in properties: {missing}")
+        return self
+
+
 class InputSchema(BaseModel):
     """Schema definition for input requirements."""
 
@@ -172,22 +221,18 @@ class InputSchema(BaseModel):
         return value
 
 
-class AgentDefinition(BaseModel):
-    """Complete agent definition from YAML."""
+class StandardAgentDefinition(BaseModel):
+    """Standard agent definition from YAML."""
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True, strict=True)
 
+    agent_type: Literal[AgentType.AGENT, AgentType.TOOL] = Field(description="Type of agent")
     name: str = Field(description="Name of the agent")
     prompt: str = Field(description="Prompt template for the agent")
     model: AgentConfiguration = Field(default_factory=AgentConfiguration)
     output_schema: OutputSchema = Field(default_factory=lambda: OutputSchema(properties={}))
     input_schema: InputSchema = Field(default_factory=InputSchema)
     tools: List[ToolSpecification] = Field(default_factory=list)
-    agent_type: AgentType = Field(default=AgentType.AGENT, description="Type of agent to create")
-    formatter_model: Model = Field(
-        default=SMALL_MODEL,
-        description="Model name for formatter in structured output agents",
-    )
     print_think_tokens: bool = Field(default=True, description="Whether to print think tokens during streaming")
     max_iterations: int | None = Field(
         default=None,
@@ -218,16 +263,100 @@ class AgentDefinition(BaseModel):
             raise ValueError("max_iterations must be a positive integer when provided")
         return value
 
-    @model_validator(mode="after")
-    def _validate_agent_invariants(self) -> "AgentDefinition":
-        # Structured output agents must declare an output schema
-        if self.agent_type == AgentType.STRUCTURED_OUTPUT:
-            # Use model_dump to avoid static analysis confusion with pydantic internals
-            dumped: Dict[str, Any] = cast(Dict[str, Any], self.output_schema.model_dump())  # pylint: disable=no-member
-            props: Dict[str, Any] = cast(Dict[str, Any], dumped.get("properties", {}))
-            if not props:
-                raise ValueError("Structured output agents require a non-empty output_schema.properties")
-            model_str = str(self.formatter_model)
-            if not model_str or not model_str.strip():
-                raise ValueError("Structured output agents require a non-empty formatter_model")
-        return self
+
+class StructuredOutputAgentDefinition(BaseModel):
+    """Structured output agent definition from YAML."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True, strict=True)
+
+    agent_type: Literal[AgentType.STRUCTURED_OUTPUT] = AgentType.STRUCTURED_OUTPUT
+    name: str = Field(description="Name of the agent")
+    prompt: str = Field(description="Prompt template for the agent")
+    model: AgentConfiguration = Field(default_factory=AgentConfiguration)
+    output_schema: StructuredOutputSchema = Field(description="Output schema with non-empty properties")
+    input_schema: InputSchema = Field(default_factory=InputSchema)
+    tools: List[ToolSpecification] = Field(default_factory=list)
+    formatter_model: Model = Field(description="Model name for formatter")
+    print_think_tokens: bool = Field(default=True, description="Whether to print think tokens during streaming")
+    max_iterations: int | None = Field(
+        default=None,
+        description=(
+            "Override the maximum number of iterations (thought/tool cycles) allowed "
+            "for this agent. If None, the underlying Runner default is used."
+        ),
+    )
+
+    @field_validator("name")
+    @classmethod
+    def _validate_name(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("agent.name must be a non-empty string")
+        return value
+
+    @field_validator("prompt")
+    @classmethod
+    def _validate_prompt(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("agent.prompt must be a non-empty string")
+        return value
+
+    @field_validator("max_iterations")
+    @classmethod
+    def _validate_max_iterations(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("max_iterations must be a positive integer when provided")
+        return value
+
+    @field_validator("formatter_model")
+    @classmethod
+    def _validate_formatter_model(cls, value: Model) -> Model:
+        model_str = str(value)
+        if not model_str or not model_str.strip():
+            raise ValueError("Structured output agents require a non-empty formatter_model")
+        return value
+
+
+class OrchestratorAgentDefinition(BaseModel):
+    """Orchestrator agent definition from YAML."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True, strict=True)
+
+    agent_type: Literal[AgentType.ORCHESTRATOR] = AgentType.ORCHESTRATOR
+    name: str = Field(description="Name of the agent")
+    prompt: str = Field(description="Prompt template for the agent")
+    model: AgentConfiguration = Field(default_factory=AgentConfiguration)
+    output_schema: OutputSchema = Field(default_factory=lambda: OutputSchema(properties={}))
+    input_schema: InputSchema = Field(default_factory=InputSchema)
+    tools: List[ToolSpecification] = Field(default_factory=list)
+    print_think_tokens: bool = Field(default=True, description="Whether to print think tokens during streaming")
+    max_iterations: int | None = Field(
+        default=None,
+        description=(
+            "Override the maximum number of iterations (thought/tool cycles) allowed "
+            "for this agent. If None, the underlying Runner default is used."
+        ),
+    )
+
+    @field_validator("name")
+    @classmethod
+    def _validate_name(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("agent.name must be a non-empty string")
+        return value
+
+    @field_validator("prompt")
+    @classmethod
+    def _validate_prompt(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("agent.prompt must be a non-empty string")
+        return value
+
+    @field_validator("max_iterations")
+    @classmethod
+    def _validate_max_iterations(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("max_iterations must be a positive integer when provided")
+        return value
+
+
+AgentDefinition = Union[StandardAgentDefinition, StructuredOutputAgentDefinition, OrchestratorAgentDefinition]

@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
-import json
 import logging
-import re
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -25,58 +23,10 @@ from framework.declarative_agents import (
     OpenAIChatCompletionsModel,
     Runner,
 )
-from framework.types import AgentType
-from framework.utils import ThinkTagFilter
+from framework.types import AgentType, StructuredOutputAgentDefinition
+from framework.utils import ThinkTagFilter, extract_text_delta_from_event
 
 
-def _extract_text_delta_from_event(event: object) -> Optional[str]:
-    """Best-effort extraction of textual delta from a streamed event.
-
-    Keeps exception handling scoped and minimal while accommodating multiple
-    possible event shapes produced by different SDKs.
-    """
-    # Case 1: Direct string delta on the event
-    try:
-        ev_delta = event.delta  # type: ignore[attr-defined]
-        if isinstance(ev_delta, str):
-            return ev_delta
-    except Exception:
-        pass
-
-    # Case 2: Event carries a data payload we can parse
-    try:
-        data_obj = event.data  # type: ignore[attr-defined]
-    except Exception:
-        data_obj = None
-
-    if isinstance(data_obj, str):
-        s = data_obj.strip()
-        if s.startswith("data:"):
-            s = s[5:].strip()
-        if s and s != "[DONE]":
-            # Try JSON line shape first
-            try:
-                obj = json.loads(s)
-                for choice in obj.get("choices", []):
-                    content = choice.get("delta", {}).get("content") or choice.get("message", {}).get("content")
-                    if isinstance(content, str) and content:
-                        return content
-            except Exception:
-                # Conservative regex fall-back for a single content field
-                m = re.search(r'"content"\s*:\s*"(.*?)"', s)
-                if m:
-                    return m.group(1)
-
-    # Case 3: Structured data object with a delta attribute
-    if data_obj is not None:
-        try:
-            data_delta = data_obj.delta  # type: ignore[attr-defined]
-            if isinstance(data_delta, str):
-                return data_delta
-        except Exception:
-            pass
-
-    return None
 
 
 """
@@ -150,7 +100,7 @@ async def evaluate_agent_against_suite(
 
     # Cached judge agents are not used for per-criterion evaluation to avoid any hidden state carryover.
 
-    use_structured_output = agent_spec.definition.agent_type == AgentType.STRUCTURED_OUTPUT
+    use_structured_output = isinstance(agent_spec.definition, StructuredOutputAgentDefinition)
 
     # Non-structured agents are materialised once and reused across cases – this
     # mirrors the original implementation.
@@ -222,7 +172,7 @@ async def evaluate_agent_against_suite(
             visible_chunks: list[str] = []
 
             async for event in streamed.stream_events():
-                text_delta = _extract_text_delta_from_event(event)
+                text_delta = extract_text_delta_from_event(event)
                 if text_delta is None:
                     continue
 
@@ -285,7 +235,7 @@ Evaluation Criterion:\n```\n{single_criterion}\n```
 
             judge_raw_chunks: list[str] = []
             async for event in judge_streamed.stream_events():
-                text_delta = _extract_text_delta_from_event(event)
+                text_delta = extract_text_delta_from_event(event)
                 if text_delta is None:
                     continue
                 print(text_delta, end="", flush=True)
@@ -308,7 +258,7 @@ Evaluation Criterion:\n```\n{single_criterion}\n```
 
             formatter_raw_chunks: list[str] = []
             async for event in formatter_streamed.stream_events():
-                text_delta = _extract_text_delta_from_event(event)
+                text_delta = extract_text_delta_from_event(event)
                 if text_delta is None:
                     continue
                 print(text_delta, end="", flush=True)
