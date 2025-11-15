@@ -44,7 +44,7 @@ agent:
     7. Never truncate gathered knowledge - always pass the complete research data to sub-tools.
 
 model:
-  name: "qwen3-30b-a3b@q8_0"
+  name: "qwen3-30b-a3b-2507"
   temperature: 0.6
   top_p: 0.95
 

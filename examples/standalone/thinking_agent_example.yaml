@@ -28,7 +28,7 @@ agent:
     from the final output, so users will only see your polished story.
 
 model:
-  name: "qwen3-30b-a3b@q8_0"
+  name: "qwen3-30b-a3b-2507"
   temperature: 0.8
   top_p: 0.95
   max_tokens: 1000
