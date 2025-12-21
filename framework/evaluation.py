@@ -86,12 +86,12 @@ def _load_eval_module(yaml_path: str) -> ModuleType:
 
 def _is_list(value: object) -> bool:
     """Type guard: check if value is a list."""
-    return hasattr(value, "__iter__") and hasattr(value, "__len__") and not hasattr(value, "keys")
+    return isinstance(value, list)
 
 
 def _is_list_or_tuple(value: object) -> bool:
     """Type guard: check if value is a list or tuple."""
-    return _is_list(value) or (hasattr(value, "__iter__") and hasattr(value, "__len__") and hasattr(value, "__getitem__"))
+    return isinstance(value, (list, tuple))
 
 
 def _extract_suite_and_criteria(module: ModuleType) -> Tuple[List[Dict[str, Any]], List[str]]:

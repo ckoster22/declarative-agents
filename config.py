@@ -2,11 +2,14 @@
 import os
 from typing import Literal
 
-from agents import AsyncOpenAI, ModelSettings
+from agents import AsyncOpenAI, ModelSettings, set_tracing_disabled
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Disable tracing globally
+set_tracing_disabled(True)
 
 # Global model configuration constants
 BIG_MODEL = "qwen/qwen3-30b-a3b-2507"

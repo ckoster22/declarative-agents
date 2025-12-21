@@ -7,7 +7,7 @@ including proper streaming and structured output support.
 
 from dataclasses import dataclass
 from inspect import signature
-from typing import Dict, List, Optional, Sequence, Type, TypedDict, Union, cast
+from typing import Any, Dict, List, Optional, Sequence, Type, TypedDict, Union, cast
 
 import yaml
 
@@ -23,6 +23,7 @@ from framework.tool_context import set_current_context
 from framework.tools import ToolLoader
 from framework.types import (
     AgentAsToolSpec,
+    AgentConfiguration,
     AgentDefinition,
     AgentType,
     FunctionToolSpec,
@@ -139,7 +140,8 @@ class AgentSpecification:
 
         # output_model is guaranteed to be non-None for StructuredOutputAgentDefinition
         # because StructuredOutputSchema requires non-empty properties
-        assert self.output_model is not None, "output_model cannot be None for StructuredOutputAgent"
+        if self.output_model is None:
+            raise ValueError("output_model cannot be None for StructuredOutputAgent")
 
         # Ensure the thinker agent respects the YAML flag for think-token printing
         thinker_agent.print_think_tokens = self.definition.print_think_tokens  # type: ignore[attr-defined]
@@ -147,7 +149,7 @@ class AgentSpecification:
         # Type narrowing: agent_type == STRUCTURED_OUTPUT guarantees StructuredOutputAgentDefinition
         if self.definition.agent_type != AgentType.STRUCTURED_OUTPUT:
             raise ValueError(f"Expected StructuredOutputAgentDefinition, got agent_type: {self.definition.agent_type}")
-        
+
         # Type narrowing: definition is StructuredOutputAgentDefinition
         structured_def: StructuredOutputAgentDefinition = self.definition  # type: ignore[assignment]
 
@@ -295,14 +297,14 @@ class AgentSpecification:
 
 def _ensure_dict(value: object, error_msg: str) -> Dict[str, object]:
     """Type guard: ensure value is a dict, raise if not."""
-    if not hasattr(value, "keys") or not hasattr(value, "__getitem__"):
+    if not isinstance(value, dict):
         raise ValueError(error_msg)
     return cast(Dict[str, object], value)
 
 
 def _ensure_list(value: object, error_msg: str) -> List[object]:
     """Type guard: ensure value is a list, raise if not."""
-    if not hasattr(value, "__iter__") or not hasattr(value, "__len__"):
+    if not isinstance(value, list):
         raise ValueError(error_msg)
     return cast(List[object], value)
 
@@ -371,13 +373,13 @@ class AgentLoader:
         # Gather optional top-level sections with type guards
         model_config_raw = data.get("model", {})
         model_config = _ensure_dict(model_config_raw, "Top-level 'model' must be a mapping (object)")
-        
+
         output_schema_cfg_raw = data.get("output_schema", {})
         output_schema_cfg = _ensure_dict(output_schema_cfg_raw, "Top-level 'output_schema' must be a mapping (object)")
-        
+
         input_schema_cfg_raw = data.get("input_schema", {})
         input_schema_cfg = _ensure_dict(input_schema_cfg_raw, "Top-level 'input_schema' must be a mapping (object)")
-        
+
         tools_cfg_raw = data.get("tools", [])
         tools_cfg = _ensure_list(tools_cfg_raw, "Top-level 'tools' must be a list")
 
@@ -406,9 +408,9 @@ class AgentLoader:
             definition: AgentDefinition = StructuredOutputAgentDefinition(
                 name=str(agent_data["name"]),
                 prompt=str(agent_data["prompt"]),
-                model=model_config,  # type: ignore[arg-type]
-                output_schema=StructuredOutputSchema(**output_schema_cfg),  # type: ignore[arg-type]
-                input_schema=InputSchema(**input_schema_cfg),  # type: ignore[arg-type]
+                model=AgentConfiguration(**cast(Dict[str, Any], model_config)),
+                output_schema=StructuredOutputSchema(**cast(Dict[str, Any], output_schema_cfg)),
+                input_schema=InputSchema(**cast(Dict[str, Any], input_schema_cfg)),
                 tools=tools,
                 formatter_model=str(agent_data.get("formatter_model", SMALL_MODEL)),
                 print_think_tokens=bool(agent_data.get("print_think_tokens", True)),
@@ -418,9 +420,9 @@ class AgentLoader:
             definition = OrchestratorAgentDefinition(
                 name=str(agent_data["name"]),
                 prompt=str(agent_data["prompt"]),
-                model=model_config,  # type: ignore[arg-type]
-                output_schema=OutputSchema(**output_schema_cfg),  # type: ignore[arg-type]
-                input_schema=InputSchema(**input_schema_cfg),  # type: ignore[arg-type]
+                model=AgentConfiguration(**cast(Dict[str, Any], model_config)),
+                output_schema=OutputSchema(**cast(Dict[str, Any], output_schema_cfg)),
+                input_schema=InputSchema(**cast(Dict[str, Any], input_schema_cfg)),
                 tools=tools,
                 print_think_tokens=bool(agent_data.get("print_think_tokens", True)),
                 max_iterations=agent_data.get("max_iterations", data.get("max_iterations")),  # type: ignore[arg-type]
@@ -430,9 +432,9 @@ class AgentLoader:
                 name=str(agent_data["name"]),
                 prompt=str(agent_data["prompt"]),
                 agent_type=agent_type,  # type: ignore[arg-type]
-                model=model_config,  # type: ignore[arg-type]
-                output_schema=OutputSchema(**output_schema_cfg),  # type: ignore[arg-type]
-                input_schema=InputSchema(**input_schema_cfg),  # type: ignore[arg-type]
+                model=AgentConfiguration(**cast(Dict[str, Any], model_config)),
+                output_schema=OutputSchema(**cast(Dict[str, Any], output_schema_cfg)),
+                input_schema=InputSchema(**cast(Dict[str, Any], input_schema_cfg)),
                 tools=tools,
                 print_think_tokens=bool(agent_data.get("print_think_tokens", True)),
                 max_iterations=agent_data.get("max_iterations", data.get("max_iterations")),  # type: ignore[arg-type]

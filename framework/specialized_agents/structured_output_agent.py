@@ -101,7 +101,10 @@ Your output MUST be ONLY the JSON object, with no other text, explanations, or m
 
         # 1. Stream the thinker agent so we can surface think tokens if enabled
         think_filter = ThinkTagFilter()
-        should_print_think = bool(getattr(self.thinker_agent, "print_think_tokens", False))
+        try:
+            should_print_think = bool(self.thinker_agent.print_think_tokens)
+        except AttributeError:
+            should_print_think = False
 
         streamed = Runner.run_streamed(
             starting_agent=self.thinker_agent,

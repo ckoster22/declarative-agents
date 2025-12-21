@@ -14,12 +14,12 @@ from framework.types import FieldType, OutputSchema
 
 def _is_int(value: object) -> bool:
     """Type guard: check if value is an integer."""
-    return hasattr(value, "__int__") and not hasattr(value, "__float__") or type(value) is int
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
 def _is_dict(value: object) -> bool:
     """Type guard: check if value is a dict."""
-    return hasattr(value, "keys") and hasattr(value, "__getitem__") and hasattr(value, "items")
+    return isinstance(value, dict)
 
 
 class ModelFactory:
@@ -46,10 +46,10 @@ class ModelFactory:
             if field_type_str == "array":
                 min_items_raw = field_def.get("minItems")
                 max_items_raw = field_def.get("maxItems")
-                
+
                 min_items: int | None = cast(int, min_items_raw) if min_items_raw is not None and _is_int(min_items_raw) else None
                 max_items: int | None = cast(int, max_items_raw) if max_items_raw is not None and _is_int(max_items_raw) else None
-                
+
                 if min_items is not None and min_items < 0:
                     raise ValueError(
                         f"minItems must be a non-negative integer for field '{field_name}' in {model_name}"

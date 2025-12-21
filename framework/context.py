@@ -13,10 +13,6 @@ from pydantic import BaseModel, Field
 from framework.types import InputSchema
 
 
-def _is_dict(value: object) -> bool:
-    """Type guard: check if value is a dict."""
-    return hasattr(value, "keys") and hasattr(value, "__getitem__") and hasattr(value, "items")
-
 # Type alias for agent output
 AgentOutput = Union[Dict[str, Union[str, int, float, bool]], str]
 
@@ -46,7 +42,7 @@ class ContextFormatter:
     @staticmethod
     def format_output_for_chat_history(output: AgentOutput, agent_name: str) -> str:
         """Render a single agent output into a readable chat history entry."""
-        if _is_dict(output):
+        if isinstance(output, dict):
             output_dict = cast(Dict[str, Union[str, int, float, bool]], output)
             formatted_parts = [f"Output from {agent_name}:"]
             for key, value in output_dict.items():
@@ -67,7 +63,7 @@ class ContextFormatter:
                 if context.has_output(required_agent):
                     output = context.get_output(required_agent)
                     context_parts.append(f"\nFrom {required_agent}:")
-                    if output is not None and _is_dict(output):
+                    if output is not None and isinstance(output, dict):
                         context_parts.append(json.dumps(cast(Dict[str, Union[str, int, float, bool]], output), indent=2))
                     else:
                         context_parts.append(str(output))
@@ -75,7 +71,7 @@ class ContextFormatter:
             # Avoid shadowing the function argument name
             for producer_name, output in context.agent_outputs.items():
                 context_parts.append(f"\nFrom {producer_name}:")
-                if _is_dict(output):
+                if isinstance(output, dict):
                     context_parts.append(json.dumps(cast(Dict[str, Union[str, int, float, bool]], output), indent=2))
                 else:
                     context_parts.append(str(output))
